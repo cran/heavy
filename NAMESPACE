@@ -1,0 +1,9 @@
+useDynLib(heavy)
+
+export(as.OneFormula, contaminated, heavy.control, heavy.family, heavy.lme.formula, 
+       heavy.lme, print.symmetric, normal, slash, Student)
+
+## register S3 methods
+
+S3method(print, heavy.family)
+S3method(print, heavy.lme)
