@@ -16,8 +16,8 @@ print.symmetric(x, digits = 4, \dots)
 }
 
 \author{
-  The design was inspired by function \code{print.correlation} in v 1.15 of \code{lme} 
-  library by Jose Pinheiro and Douglas Bates.
+  The design was inspired by function \code{print.correlation} in version 1.15 
+  of \code{lme} library by Jose Pinheiro and Douglas Bates.
 }
 
 \examples{

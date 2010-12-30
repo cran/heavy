@@ -9,7 +9,7 @@
   The response variable was the distance, in millimeters, from the center of
   pituitary to the pterygomaxillary fissure.
 }
-\usage{dental}
+\usage{data(dental)}
 \format{data frame with 108 rows and 4 columns.}
 \source{
   Potthoff, R.F. and Roy, S.N. (1964). 

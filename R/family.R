@@ -21,6 +21,21 @@ function()
             class = "heavy.family")
 }
 
+Cauchy <-
+function()
+{
+  cl <- match.call()
+  pars <- NULL
+  pnames <- NULL
+  structure(list(family = "Cauchy",
+                 call = cl,
+                 pars = pars,
+                 pnames = pnames,
+                 npars = 0,
+                 which = 1),
+            class = "heavy.family")
+}
+
 Student <-
 function(df = 4)
 {
@@ -34,7 +49,7 @@ function(df = 4)
                  pars = pars,
                  pnames = pnames,
                  npars = 1,
-                 which = 1),
+                 which = 2),
             class = "heavy.family")
 }
 
@@ -51,12 +66,12 @@ function(df = 2)
                  pars = pars,
                  pnames = pnames,
                  npars = 1,
-                 which = 2),
+                 which = 3),
             class = "heavy.family")
 }
 
 contaminated <-
-function(epsilon = 0.05, vif = 0.1)
+function(epsilon = 0.05, vif = 0.25)
 {
   cl <- match.call()
   if ((epsilon < 0) || (epsilon > 1))
@@ -70,6 +85,6 @@ function(epsilon = 0.05, vif = 0.1)
                  pars = pars,
                  pnames = pnames,
                  npars = 2,
-                 which = 3),
+                 which = 4),
             class = "heavy.family")
 }
