@@ -1,17 +1,18 @@
 Package: heavy
-Version: 0.2
-Date: 2010-12-30
-Title: Package for outliers accomodation using heavy-tailed
+Version: 0.2-3
+Date: 2013-03-22
+Title: Package for outliers accommodation using heavy-tailed
         distributions
-Author: Felipe Osorio <felipe.osorio@uv.cl>
-Maintainer: Felipe Osorio <felipe.osorio@uv.cl>
+Author: Felipe Osorio <felipe.osorios@usm.cl>
+Maintainer: Felipe Osorio <felipe.osorios@usm.cl>
 Description: This package contains functions to perform estimation and
         inference considering heavy-tailed distributions. Currently the
-        package includes linear regression and linear mixed-effect
-        models.
+        package includes linear regression, linear mixed-effect models,
+        penalized splines and random variate generation.
 License: GPL (>= 2)
-URL: http://fosorio.deuv.cl/heavy/
+URL: http://heavy.mat.utfsm.cl/
 LazyLoad: yes
-Packaged: 2010-12-31 00:33:41 UTC; Administrador
+Packaged: 2013-03-22 13:44:26 UTC; felipe
+NeedsCompilation: yes
 Repository: CRAN
-Date/Publication: 2011-01-03 12:35:18
+Date/Publication: 2013-03-22 14:55:23

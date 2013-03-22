@@ -6,18 +6,18 @@ function(fixed,
     family = Student(df = 4),
     subset,
     na.action = na.fail,
-    control)
+    control = heavy.control())
   UseMethod("heavyLme")
 
 heavyLme.formula <-
 function(fixed,
     random,
-	  groups,
-	  data = sys.frame(sys.parent()),
-	  family = Student(df = 4),
-	  subset,
-	  na.action = na.fail, 
-	  control = NULL)
+    groups,
+    data = sys.frame(sys.parent()),
+    family = Student(df = 4),
+    subset,
+    na.action = na.fail,
+    control = heavy.control())
 {
   ## local functions
   as.OneFormula <-
@@ -36,6 +36,7 @@ function(fixed,
     } else NULL
   }
   ##
+
   Call <- match.call()
   ## checking arguments
   if(!inherits(fixed, "formula") || length(fixed) != 3) {
@@ -46,6 +47,7 @@ function(fixed,
     random <- fixed[[3]]
   }
   groups <- asOneSidedFormula(groups)
+
   ## extract a data frame with enough information to evaluate 
   ## fixed, random and groups
   mfArgs <- list(formula = as.OneFormula(fixed, random, groups),
@@ -54,7 +56,7 @@ function(fixed,
     mfArgs[["subset"]] <- asOneSidedFormula(subset)[[2]]
   }
   dataMix <- do.call("model.frame", mfArgs)
-  origOrder <- row.names(dataMix)	# preserve the original order
+  origOrder <- row.names(dataMix) # preserve the original order
   y <- eval(fixed[[2]], dataMix)
   ## sort the model.frame by groups and get the matrices and parameters
   ## used in the estimation procedures
@@ -95,6 +97,7 @@ function(fixed,
   DcLen <- pmin(glen, ZXcols)
   DcRows <- sum(DcLen)
   dims <- c(n, q, p, N, ZXrows, ZXcols, DcRows)
+
   ## initial estimates
   fit <- lsfit(X, y, intercept = FALSE)[1:2]
   scale <- sum(fit$residuals^2) / N
@@ -103,28 +106,33 @@ function(fixed,
   theta <- diag(theta, nrow = length(theta))
   start <- c(fit$coefficients, theta, scale)
   names(start) <- NULL
+
   ## constructing the lmeData list
   lmeData <- list(ZX = ZX, y = y, qraux = qraux, dims = dims, glen = glen, 
                   DcLen = DcLen, grp = grp, ugrp = ugrp, origOrder = origOrder,
                   start = start)
   storage.mode(lmeData$ZX) <- "double"
   storage.mode(lmeData$y) <- "double"
+
   ## extract family info
   if (!inherits(family, "heavy.family"))
     stop("Use only with 'heavy.family' objects")
   if (is.null(family$family))
     stop("'family' not recognized")
-  fltype <- family$which
-  if ((fltype < 0) || (fltype > 4))
+  kind <- family$which
+  if ((kind < 0) || (kind > 4))
     stop("not valid 'family' object")
-  settings <- c(fltype, family$npars, unlist(family$pars))
+  settings <- c(kind, family$npars, unlist(family$pars))
+
   ## set control values 
-  if (is.null(control))
+  if (missing(control))
     control <- heavy.control(algorithm = "NEM")
-  ctrl <- c(unlist(control), 0)
+  ctrl <- unlist(control)
+  ctrl <- c(ctrl, 0)
+
   ## call fitter
   now <- proc.time()
-  fit <- .C("heavyLme_fit",
+  fit <- .C("lme_fit",
             ZX = lmeData$ZX,
             y = lmeData$y,
             qraux = as.double(lmeData$qraux),
@@ -142,21 +150,23 @@ function(fixed,
             logLik = double(1),
             control = as.double(ctrl))
   speed <- proc.time() - now
+  
   ## compute fitted values and residuals
-  Fitted <- .C("heavyLme_fitted",
-            ZX = lmeData$ZX,
-            dims = as.integer(lmeData$dims),
-            glen = as.integer(lmeData$glen),
-            DcLen = as.integer(lmeData$DcLen),
-            coefficients = as.double(fit$coefficients),
-            ranef = as.double(fit$ranef),
-            conditional = as.double(rep(0, ZXrows)),
-            marginal = as.double(rep(0, ZXrows)))[c("marginal", "conditional")]
+  Fitted <- .C("lme_fitted",
+	       ZX = lmeData$ZX,
+	       dims = as.integer(lmeData$dims),
+	       glen = as.integer(lmeData$glen),
+	       DcLen = as.integer(lmeData$DcLen),
+	       coefficients = as.double(fit$coefficients),
+	       ranef = as.double(fit$ranef),
+	       conditional = as.double(rep(0, ZXrows)),
+	       marginal = as.double(rep(0, ZXrows)))[c("marginal", "conditional")]
   Fitted <- as.data.frame(Fitted)
   Resid <- y - Fitted
   ## putting back in the original order of the data
   Fitted <- Fitted[origOrder,]
   Resid <- Resid[origOrder,]
+
   ## creating the output object
   lmeData$ZX <- fit$ZX
   lmeData$y <- fit$y
@@ -168,7 +178,7 @@ function(fixed,
               theta = matrix(fit$theta, ncol = q),
               scale = fit$scale,
               logLik = fit$logLik,
-              numIter = fit$control[6],
+              numIter = fit$control[7],
               control = control,
               settings = fit$settings,
               ranef = matrix(fit$ranef, ncol = q, byrow = TRUE),
@@ -179,6 +189,12 @@ function(fixed,
               Resid = Resid,
               speed = speed,
               converged = FALSE)
+  if (!control$fix.shape) {
+    if ((kind > 1) && (kind < 4)) {
+      df <- signif(out$settings[3], 6)
+      out$family$call <- call(out$family$family, df = df)
+    }
+  }
   if (out$numIter < control$maxIter)
     out$converged <- TRUE
   names(out$coefficients) <- Xnames
@@ -193,6 +209,15 @@ function(fixed,
 print.heavyLme <-
 function(x, digits = 4, ...)
 {
+  ## local functions
+  print.symmetric <-
+  function(z, digits = digits, ...)
+  {
+    ll <- lower.tri(z, diag = TRUE)
+    z[ll] <- format(z[ll], ...)
+    z[!ll] <- ""
+    print(z, ..., quote = F)
+  }
   cat("Linear mixed-effects model under heavy-tailed distributions\n")
   if (x$converged)
     cat(" Converged in", x$numIter, "iterations\n")
@@ -223,7 +248,7 @@ function (object, ...)
   storage.mode(ZX) <- "double"
   control <- unlist(z$control)
   ## coefficients covariance matrix
-  o <- .C("heavyLme_acov",
+  o <- .C("lme_acov",
           ZX = ZX,
           dims = as.integer(dims),
           glen = as.integer(z$lmeData$glen),
@@ -256,6 +281,15 @@ function (object, ...)
 print.summary.heavyLme <-
 function(x, digits = 4, ...)
 {
+  ## local functions
+  print.symmetric <-
+  function(z, digits = digits, ...)
+  {
+    ll <- lower.tri(z, diag = TRUE)
+    z[ll] <- format(z[ll], ...)
+    z[!ll] <- ""
+    print(z, ..., quote = F)
+  }
   cat("Linear mixed-effects model under heavy-tailed distributions\n")
   cat(" Data:", paste(as.name(x$call$data), ";", sep = ""))
   print(x$family)

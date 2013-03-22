@@ -19,7 +19,7 @@ heavyLm(formula, data, family = Student(df = 4), subset, na.action,
   \item{family}{ a description of the error distribution to be used in the model. 
   By default the Student-t distribution with 4 degrees of freedom is considered.}
   \item{subset}{ an optional expression indicating the subset of the rows of 
-  data that should be used in the fit.}
+  data that should be used in the fitting process.}
   \item{na.action}{ a function that indicates what should happen when the data contain NAs.}
   \item{control}{ a list of control values for the estimation algorithm to replace 
   the default values returned by the function \code{\link{heavy.control}}.}
@@ -33,15 +33,16 @@ heavyLm(formula, data, family = Student(df = 4), subset, na.action,
   functions \code{print} and \code{summary}, show the results of the fit.
 }
 
-\author{ The design was inspired by the R function \code{\link{lm}}.}
 \references{
-  Dempster, A.P., Laird, N.M. and Rubin, D.B. (1980). 
+  Dempster, A.P., Laird, N.M., and Rubin, D.B. (1980). 
   Iteratively reweighted least squares for linear regression when errors are Normal/Independent distributed. 
   In P.R. Krishnaiah (Ed.), \emph{Multivariate Analysis V}, p. 35-57. North-Holland.
 }
 
 \examples{
-heavyLm(stack.loss ~ ., data = stackloss, family = Student(df = 2))
+data(ereturns)
+fit <- heavyLm(m.marietta ~ CRSP, data = ereturns, family = Student(df = 5))
+summary(fit)
 }
 \keyword{regression}
 \keyword{models}

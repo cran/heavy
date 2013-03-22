@@ -1,5 +1,34 @@
 #include "family.h"
 
+/* declaration of static functions */
+
+/* functions for computation of weights */
+static double weight_normal();
+static double weight_cauchy(double, double);
+static double weight_student(double, double, double);
+static double weight_slash(double, double, double);
+static double weight_contaminated(double, double, double, double);
+
+/* functions for update the parameters of mixture variables */
+static double negQfnc_student(double, void *);
+static void update_df_student(DIMS, double *, double *, double *, double);
+static double logwts_slash(double, double, double);
+static void update_df_slash(DIMS, double *, double *, double *);
+
+/*  functions for evaluation of the log-likelihood */
+static double logLik_normal(DIMS, double *);
+static double logLik_cauchy(DIMS, double *, double *);
+static double logLik_student(DIMS, double *, double, double *);
+static double logLik_slash(DIMS, double *, double, double *);
+static double logLik_contaminated(DIMS, double *, double, double, double *);
+
+/* scale factor for the Fisher information matrix */
+static double acov_scale_normal();
+static double acov_scale_cauchy(double);
+static double acov_scale_student(double, double);
+static double acov_scale_slash(double, double, int);
+static double acov_scale_contaminated(double, double, double, int);
+
 /* functions for dealing with 'family' objects */
 
 FAMILY
@@ -8,8 +37,8 @@ family_init(double *settings)
     FAMILY ans;
 
     ans = (FAMILY) Calloc(1, FAMILY_struct);
-    ans->fltype = (int) settings[0];
-    ans->npars  = (int) settings[1];
+    ans->kind  = (int) settings[0];
+    ans->npars = (int) settings[1];
     ans->nu = settings + 2;
     return ans;
 }
@@ -22,198 +51,287 @@ family_free(FAMILY this)
 
 /* functions for computation of weights */
 
-double
+static double
 weight_normal()
 {   /* normal weight */
-    return 1.0;
+    return 1.;
 }
 
-double
+static double
 weight_cauchy(double length, double distance)
 {   /* Cauchy weight */
-    double ans;
+    double wts;
 
-    ans = (1.0 + length) / (1.0 + distance);
-    return ans;
+    wts = (1. + length) / (1. + distance);
+    return wts;
 }
 
-double
+static double
 weight_student(double length, double df, double distance)
 {   /* Student-t weight */
-    double ans;
+    double wts;
 
-    ans = (df + length) / (df + distance);
-    return ans;
+    wts = (df + length) / (df + distance);
+    return wts;
 }
 
-double
+static double
 weight_slash(double length, double df, double distance)
 {   /* slash weight */
-    int lower_tail = 1, log_p = 0;
-    double shape, f, ans;
+    int lower_tail = 1, log_p = 1;
+    double shape, f, incr, wts;
 
-    shape  = length / 2.0 + df;
-    if (shape > 245.0) return 1.0;
-    f = (length + 2.0 * df) / distance;
-    ans  = pgamma(1.0, shape + 1.0, 2.0 / distance, lower_tail, log_p);
-    ans /= pgamma(1.0, shape, 2.0 / distance, lower_tail, log_p);
-    return (f * ans);
+    shape = df + .5 * length;
+    if (shape > 178.) return 1.;
+    f = (length + 2. * df) / distance;
+    incr  = shape * log(distance / 2.) - .5 * distance - lgamma1p(shape);
+    incr -= pgamma(1., shape, 2. / distance, lower_tail, log_p);
+    wts = 1. - exp(incr);
+    return (f * wts);
 }
 
-double
+static double
 weight_contaminated(double length, double epsilon, double vif, double distance)
 {   /* contaminated normal weight */
-    double f, ans;
+    double f, wts;
 
-    f = exp(0.5 * (1.0 - vif) * distance);
-    ans  = 1.0 - epsilon + epsilon * f * pow(vif, 0.5 * length + 1.0);
-    ans /= 1.0 - epsilon + epsilon * f * pow(vif, 0.5 * length);
-    return ans;
+    f = exp(.5 * (1. - vif) * distance);
+    wts  = 1. - epsilon + epsilon * f * R_pow(vif, .5 * length + 1.);
+    wts /= 1. - epsilon + epsilon * f * R_pow(vif, .5 * length);
+    return wts;
 }
 
 double
 do_weight(FAMILY family, double length, double distance)
 {   /* weights dispatcher */
-    double df, epsilon, vif, ans;
+    double df, epsilon, vif, wts;
 
-    switch (family->fltype) {
+    switch (family->kind) {
         case NORMAL:
-            ans = weight_normal();
+            wts = weight_normal();
             break;
         case CAUCHY:
-            ans = weight_cauchy(length, distance);
+            wts = weight_cauchy(length, distance);
             break;
         case STUDENT:
             df = (family->nu)[0];
-            ans = weight_student(length, df, distance);
+            wts = weight_student(length, df, distance);
             break;
         case SLASH:
             df = (family->nu)[0];
-            ans = weight_slash(length, df, distance);
+            wts = weight_slash(length, df, distance);
             break;
         case CONTAMINATED:
             epsilon = (family->nu)[0];
             vif = (family->nu)[1];
-            ans = weight_contaminated(length, epsilon, vif, distance);
+            wts = weight_contaminated(length, epsilon, vif, distance);
             break;
         default:
-            ans = weight_normal();
+            wts = weight_normal();
             break;
     }
-    return ans;
+    return wts;
+}
+
+/* functions for the estimation of the mixture 'shape' parameters */
+
+double 
+negQfnc_student(double df, void *pars)
+{   /* for brent procedure */
+    QTpars st = (QTpars) pars;
+    DIMS dm = st->dm;
+    int i;
+    double accum = 0.0, val;
+    
+    for (i = 0; i < dm->n; i++) {
+        accum += log((st->weights)[i]) - (st->weights)[i];
+        accum += digamma(.5 * (st->df + (st->lengths)[i])) - log(.5 * (st->df + (st->lengths)[i]));
+    }
+    accum /= dm->n;
+
+    /* compute Q-function for Student-t */
+    val  = .5 * df * log(.5 * df) - lgammafn(.5 * df);
+    val += .5 * df * accum;
+    val *= dm->n;
+    st->Qfnc = val;
+
+    return -val;
+}
+
+static void
+update_df_student(DIMS dm, double *df, double *weights, double *lengths, double tol)
+{
+    double conv, upper_df;
+    const double c = (1. + sqrt(5.)) * .5;
+    QTpars pars;
+    
+    pars = (QTpars) Calloc(1, QT_pars);
+
+    /* constructs a Q-function object */
+    pars->dm = dm;
+    pars->weights = weights;
+    pars->lengths = lengths;
+    pars->df = *df;
+    
+    /* call optimizer */
+    upper_df = *df;
+    do {
+        *df = brent(0., upper_df, negQfnc_student, pars, tol);
+        conv = fabs(*df - upper_df);
+        upper_df *= c;
+    } while (conv < tol);
+    
+    Free(pars);
+}
+
+static double
+logwts_slash(double length, double df, double distance)
+{   /* slash log-weight */
+    int lower_tail = 1, log_p = 0;
+    double shape, incr, wts;
+
+    shape = df + .5 * length;
+    wts   = digamma(shape) - log(distance / 2.);
+    incr  = pgamma_derivative(1., shape, distance / 2.);
+    incr /= pgamma(1., shape, 2. / distance, lower_tail, log_p);
+    wts  += incr;
+    return wts;
+}
+
+static void 
+update_df_slash(DIMS dm, double *df, double *distances, double *lengths)
+{   /* update df for slash distribution */
+    int i;
+    double accum = 0.0;
+    
+    for (i = 0; i < dm->n; i++)
+        accum += logwts_slash(lengths[i], *df, distances[i]);
+    
+    *df  = dm->n;
+    *df /= -accum;
+}
+
+void
+update_mixture(FAMILY family, DIMS dm, double *distances, double *lengths,
+    double *weights, double tol)
+{   /* update dispatcher */
+    switch (family->kind) {
+        case NORMAL:
+            break;
+        case CAUCHY:
+            break;
+        case STUDENT:
+            update_df_student(dm, family->nu, weights, lengths, tol);
+            break;
+        case SLASH:
+            update_df_slash(dm, family->nu, distances, lengths);
+            break;
+        case CONTAMINATED:
+            break;
+        default:
+            break;
+    }
 }
 
 /*  functions for evaluation of the log-likelihood */
 
-double
-logLik_normal(DIMS dd, double *distances)
+static double
+logLik_normal(DIMS dm, double *distances)
 {   /* gaussian log-likelihood */
     int i;
-    double accum = 0.0, ans;
+    double accum = 0.0;
 
-    for (i = 0; i < dd->n; i++)
+    for (i = 0; i < dm->n; i++)
         accum += *distances++;
-    ans = -0.5 * accum - dd->N * M_LN_SQRT_2PI;
-    return ans;
+    return (-.5 * accum - dm->N * M_LN_SQRT_2PI);
 }
 
-double
-logLik_cauchy(DIMS dd, double *lengths, double *distances)
+static double
+logLik_cauchy(DIMS dm, double *lengths, double *distances)
 {   /* Cauchy log-likelihood */
     int i;
-    double accum = 0.0, m, ans;
+    double accum = 0.0, p;
 
-    for (i = 0; i < dd->n; i++) {
-        m = *lengths++;
-        m += 1.0;
-        accum += lgammafn(0.5 * m);
-        accum -= 0.5 * m * log1p(*distances++);
+    for (i = 0; i < dm->n; i++) {
+        p = *lengths++;
+        accum += lgammafn(.5 * (p + 1.)) - .5 * (p + 1.) * log1p(*distances++);
     }
-    ans  = -0.5 * (dd->N + dd->n) * M_LN_SQRT_PI;
-    ans += accum;
-    return ans;
+    return (accum - (dm->N + dm->n) * M_LN_SQRT_PI);
 }
 
-double
-logLik_student(DIMS dd, double *lengths, double df, double *distances)
+static double
+logLik_student(DIMS dm, double *lengths, double df, double *distances)
 {   /* Student-t log-likelihood */
     int i;
-    double accum = 0.0, m, ans;
+    double accum = 0.0, p, c;
 
-    for (i = 0; i < dd->n; i++) {
-        m = *lengths++;
-        m += df;
-        accum += lgammafn(0.5 * m);
-        accum -= 0.5 * m * log1p(*distances++ / df);
+    c = dm->n * lgammafn(.5 * df) + .5 * dm->N * (log(df) + 2. * M_LN_SQRT_PI);
+    for (i = 0; i < dm->n; i++) {
+        p = *lengths++;
+        accum += lgammafn(.5 * (df + p)) - .5 * (df + p) * log1p(*distances++ / df);
+
     }
-    ans  = -0.5 * dd->N * (log(df) + 2.0 * M_LN_SQRT_PI) - dd->n * lgammafn(0.5 * df);
-    ans += accum;
-    return ans;
+    return (accum - c);
 }
 
-double
-logLik_slash(DIMS dd, double *lengths, double df, double *distances)
+static double
+logLik_slash(DIMS dm, double *lengths, double df, double *distances)
 {   /* Slash log-likelihood */
     int i, lower_tail = 1, log_p = 1;
-    double accum = 0.0, shape, scale, m, ans;
+    double accum = 0.0, p, u, shape;
 
-    for (i = 0; i < dd->n; i++) {
-        m = *lengths++;
-        shape = 0.5 * m + df;
-        scale = 2.0 / *distances++;
-        accum += shape * log(scale) + lgammafn(shape);
-        accum += pgamma(1.0, shape, scale, lower_tail, log_p);
+    for (i = 0; i < dm->n; i++) {
+        p = *lengths++;
+        u = *distances++;
+        shape = df + p / 2.;
+        accum += lgammafn(shape) + shape * log(2. / u);
+        accum += pgamma(1., shape, 2. / u, lower_tail, log_p);
     }
-    ans = dd->n * log(df) - dd->N * M_LN_SQRT_2PI;
-    ans += accum;
-    return ans;
+    return (accum + dm->n * log(df) - dm->N * M_LN_SQRT_2PI);
 }
 
-double
-logLik_contaminated(DIMS dd, double *lengths, double epsilon, double vif, double *distances)
+static double
+logLik_contaminated(DIMS dm, double *lengths, double eps, double vif, double *distances)
 {   /* contaminated-normal log-likelihood */
     int i;
-    double accum = 0.0, f, u, ans;
+    double accum = 0.0, p, f, u;
 
-    for(i = 0; i < dd->n; i++) {
+    for(i = 0; i < dm->n; i++) {
+        p = *lengths++;
         u = *distances++;
-        u *= -0.5;
-        f  = epsilon * pow(vif, 0.5 * *lengths++) * exp(vif * u);
-        f += (1.0 - epsilon) * exp(u);
+        f = eps * pow(vif, .5 * p) * exp(-.5 * vif * u) + (1. - eps) * exp(-.5 * u);
         accum += log(f);
     }
-    ans = -0.5 * dd->N * M_LN_SQRT_2PI;
-    ans += accum;
-    return ans;
+    return (accum - dm->N * M_LN_SQRT_2PI);
 }
 
 double
-logLik_kernel(FAMILY family, DIMS dd, double *lengths, double *distances)
+logLik_kernel(FAMILY family, DIMS dm, double *lengths, double *distances)
 {   /* logLik dispatcher */
-    double df, epsilon, vif, ans;
+    double df, eps, vif, ans;
 
-    switch (family->fltype) {
+    switch (family->kind) {
         case NORMAL:
-            ans = logLik_normal(dd, distances);
+            ans = logLik_normal(dm, distances);
             break;
         case CAUCHY:
-            ans = logLik_cauchy(dd, lengths, distances);
+            ans = logLik_cauchy(dm, lengths, distances);
             break;
         case STUDENT:
             df = (family->nu)[0];
-            ans = logLik_student(dd, lengths, df, distances);
+            ans = logLik_student(dm, lengths, df, distances);
             break;
         case SLASH:
             df = (family->nu)[0];
-            ans = logLik_slash(dd, lengths, df, distances);
+            ans = logLik_slash(dm, lengths, df, distances);
             break;
         case CONTAMINATED:
-            epsilon = (family->nu)[0];
+            eps = (family->nu)[0];
             vif = (family->nu)[1];
-            ans = logLik_contaminated(dd, lengths, epsilon, vif, distances);
+            ans = logLik_contaminated(dm, lengths, eps, vif, distances);
             break;
         default:
-            ans = logLik_normal(dd, distances);
+            ans = logLik_normal(dm, distances);
             break;
     }
     return ans;
@@ -221,44 +339,44 @@ logLik_kernel(FAMILY family, DIMS dd, double *lengths, double *distances)
 
 /* scale factor required for the Fisher information matrix */
 
-double
+static double
 acov_scale_normal()
 {   /* normal scale */
-    return 1.0;
+    return 1.;
 }
 
-double
+static double
 acov_scale_cauchy(double length)
 {   /* Cauchy scale */
-    double ans;
+    double acov;
 
-    ans = (length + 1.0) / (length + 3.0);
-    ans *= length;
-    return ans;
+    acov = (length + 1.) / (length + 3.);
+    acov *= length;
+    return acov;
 }
 
-double
+static double
 acov_scale_student(double length, double df)
 {   /* Student-t scale */
-    double ans;
+    double acov;
 
-    ans = (df + length) / (df + length + 2.0);
-    ans *= length;
-    return ans;
+    acov = (df + length) / (df + length + 2.);
+    acov *= length;
+    return acov;
 }
 
-double
+static double
 acov_scale_slash(double length, double df, int ndraws)
 {   /* slash scale */
     int i;
-    double accum = 0.0, u, w, *z;
+    double accum = 0., u, w, *z;
 
-    if (df > 30.0)
-        return 1.0;
+    if (df > 30.)
+        return 1.;
     z = (double *) Calloc(length, double);
     GetRNGstate();
     for (i = 0; i < ndraws; i++) {
-        slash_spherical_rand(z, df, 1, length);
+        rand_spherical_slash(z, df, 1, length);
         u = norm_sqr(z, length, 1);
         w = weight_slash(length, df, u);
         accum += SQR(w) * u;
@@ -268,16 +386,16 @@ acov_scale_slash(double length, double df, int ndraws)
     return (accum / ndraws);
 }
 
-double
+static double
 acov_scale_contaminated(double length, double epsilon, double vif, int ndraws)
 {   /* contaminated normal scale */
     int i;
-    double accum = 0.0, u, w, *z;
+    double accum = 0., u, w, *z;
 
     z = (double *) Calloc(length, double);
     GetRNGstate();
     for (i = 0; i < ndraws; i++) {
-        contaminated_spherical_rand(z, epsilon, vif, 1, length);
+        rand_spherical_contaminated(z, epsilon, vif, 1, length);
         u = norm_sqr(z, length, 1);
         w = weight_contaminated(length, epsilon, vif, u);
         accum += SQR(w) * u;
@@ -292,7 +410,7 @@ acov_scale(FAMILY family, double length, int ndraws)
 {   /* scale factor for the Fisher information matrix */
     double df, epsilon, vif, ans;
 
-    switch (family->fltype) {
+    switch (family->kind) {
         case NORMAL:
             ans = acov_scale_normal();
             break;
@@ -318,3 +436,4 @@ acov_scale(FAMILY family, double length, int ndraws)
     }
     return ans;
 }
+

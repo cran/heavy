@@ -8,7 +8,7 @@
   using the formulation described in Pinheiro et al. (2001).
 }
 \usage{
-heavyLme(fixed, random, groups, data, family = Student(df = 4), 
+heavyLme(fixed, random, groups, data, family = Student(df = 4),
   subset, na.action, control)
 }
 
@@ -21,18 +21,17 @@ heavyLme(fixed, random, groups, data, family = Student(df = 4),
   By default the variables are taken from the environment from which heavy.lme is called.}
   \item{family}{ a description of the error distribution to be used in the model. 
   By default the Student-t distribution with 4 degrees of freedom is considered.}
-  \item{subset}{ an optional expression indicating the subset of the rows of data that should be used in the fit.}
+  \item{subset}{ an optional expression indicating the subset of the rows of data that should be used in the fitting process.}
   \item{na.action}{ a function that indicates what should happen when the data contain NAs.}
   \item{control}{ a list of control values for the estimation algorithm to replace the default 
   values returned by the function \code{\link{heavy.control}}.}
 }
 
 \value{
-  an object of class \code{heavyLme} representing the linear mixed-effects model fit. Generic function print, 
-  show the results of the fit.
+  an object of class \code{heavyLme} representing the linear mixed-effects model fit. Generic function \code{print}
+  and \code{summary}, show the results of the fit.
 }
 
-\author{ The design was inspired by version 1.15 of function \code{\link[nlme]{lme}} by Jose Pinheiro and Douglas Bates.}
 \references{
   Pinheiro, J.C., Liu, C. and Wu, Y.N. (2001).
   Efficient algorithms for robust estimation in linear mixed-effects models using the multivariate \emph{t} distribution.
@@ -41,7 +40,8 @@ heavyLme(fixed, random, groups, data, family = Student(df = 4),
 
 \examples{
 data(dental)
-heavyLme(distance ~ age * Sex, random = ~ age, groups = ~ Subject, 
+fit <- heavyLme(distance ~ age * Sex, random = ~ age, groups = ~ Subject, 
   data = dental, family = Student(df = 4))
+summary(fit)
 }
 \keyword{models}

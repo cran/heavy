@@ -1,33 +1,66 @@
 #include "lm_fit.h"
 
+/* declaration of static functions */
+
+/* functions to deal with dims objects */
+static DIMS dims(int *);
+static void dims_free(DIMS);
+
+/* routines for estimation in linear models */
+static LM lm_init(double *, double *, int *, double *, double *, double *, double *, double *, double *, double *, double *, double *);
+static void lm_free(LM);
+static int IRLS(double *, double *, DIMS, FAMILY, double *, double *, double *, double *, double *, double *, int, double, int);
+static void IRLS_increment(double *, double *, DIMS, double *, double *, double *, double *, double *);
+
+/* routines for evaluation of marginal log-likelihood and Fisher information matrix */
+static double lm_logLik(FAMILY, DIMS, double *, double *);
+static void lm_acov(FAMILY, DIMS, double *, double *, int, double *);
+
 void
-heavyLm_fit(double *y, double *x, int *pdims, double *settings, double *coef,
-    double *scale, double *fitted, double *residuals, double *distances,
+lm_fit(double *y, double *x, int *pdims, double *settings, double *coef,
+    double *scale, double *fitted, double *resid, double *distances,
     double *weights, double *logLik, double *acov, double *control)
 {   /* fitter for linear models under heavy-tailed errors */
-    LMStruct model;
+    LM model;
 
-    model = heavyLm_init(y, x, pdims, settings, coef, scale, fitted, residuals,
-                         distances, weights, acov, control);
-    control[3] = (double) IRLS(model->y, model->x, model->dd, model->family,
-                               model->coef, model->scale, model->fitted,
-                               model->residuals, model->distances, model->weights,
-                               model->maxIter, model->tolerance);
-    *logLik = heavyLm_logLik(model->family, model->dd, model->distances, model->scale);
-    heavyLm_acov(model->family, model->dd, model->x, model->scale, model->ndraws,
-                 model->acov);
-    heavyLm_free(model);
+    model = lm_init(y, x, pdims, settings, coef, scale, fitted, resid, distances,
+                    weights, acov, control);
+    control[4] = (double) IRLS(model->y, model->x, model->dm, model->family,
+                               model->coef, model->scale, model->resid,
+                               model->fitted, model->distances, model->weights,
+                               model->maxIter, model->tolerance, model->fixShape);
+    *logLik = lm_logLik(model->family, model->dm, model->distances, model->scale);
+    lm_acov(model->family, model->dm, model->x, model->scale, model->ndraws, model->acov);
+    lm_free(model);
 }
 
-LMStruct
-heavyLm_init(double *y, double *x, int *pdims, double *settings, double *coef,
-    double *scale, double *fitted, double *residuals, double *distances,
+static DIMS
+dims(int *pdims)
+{   /* dims object for linear models */
+    DIMS ans;
+
+    ans = (DIMS) Calloc(1, DIMS_struct);
+    ans->N = (int) pdims[0];
+    ans->n = ans->N;
+    ans->p = (int) pdims[1];
+    return ans;
+}
+
+static void
+dims_free(DIMS this)
+{   /* destructor for a dims object */
+    Free(this);
+}
+
+static LM
+lm_init(double *y, double *x, int *pdims, double *settings, double *coef,
+    double *scale, double *fitted, double *resid, double *distances,
     double *weights, double *acov, double *control)
 {   /* constructor for a linear model object */
-    LMStruct model;
+    LM model;
 
-    model = (LMStruct) Calloc(1, LM_struct);
-    model->dd = dims(0, pdims);
+    model = (LM) Calloc(1, LM_struct);
+    model->dm = dims(pdims);
     model->settings = settings;
     model->family = family_init(settings);
     model->y = y;
@@ -35,163 +68,150 @@ heavyLm_init(double *y, double *x, int *pdims, double *settings, double *coef,
     model->coef = coef;
     model->scale = scale;
     model->fitted = fitted;
-    model->residuals = residuals;
+    model->resid = resid;
     model->distances = distances;
     model->weights = weights;
     model->acov = acov;
     model->control = control;
     model->maxIter = (int) control[0];
     model->tolerance = control[1];
-    model->ndraws = (int) control[2];
+    model->fixShape = (int) control[2];
+    model->ndraws = (int) control[3];
     return model;
 }
 
-void
-heavyLm_free(LMStruct this)
+static void
+lm_free(LM this)
 {   /* destructor for a model object */
-    dims_free(this->dd);
+    dims_free(this->dm);
     family_free(this->family);
     Free(this);
 }
 
-int
-IRLS(double *y, double *x, DIMS dd, FAMILY family, double *coef, double *scale,
-    double *fitted, double *residuals, double *distances, double *weights,
-    int maxIter, double tolerance)
+static int
+IRLS(double *y, double *x, DIMS dm, FAMILY family, double *coef, double *scale,
+    double *resid, double *fitted, double *distances, double *weights, int maxit,
+    double tolerance, int fixShape)
 {   /* iteratively reweighted LS algorithm */
-    int i, iter, rdf = dd->n - dd->p;
-    double conv, RSS, newRSS, *incr, *working;
+    int i, iter, rdf = dm->n - dm->p;
+    double conv, RSS, tol = R_pow(tolerance, 2./3.), newRSS, *lengths, *working;
 
     /* initialization */
-    incr    = (double *) Calloc(dd->p, double);
-    working = (double *) Calloc(dd->n, double);
-    RSS = norm_sqr(residuals, dd->n, 1);
+    lengths = (double *) Calloc(dm->n, double);
+    working = (double *) Calloc(dm->n, double);
+    for (i = 0; i < dm->n; i++)
+        lengths[i] = 1.;
+    RSS = norm_sqr(resid, dm->n, 1);
 
     /* main loop */
-    for (iter = 1; iter <= maxIter; iter++) {
+    for (iter = 1; iter <= maxit; iter++) {
         /* E-step */
-        for (i = 0; i < dd->n; i++) {
-            distances[i] = SQR(residuals[i]) / *scale;
-            weights[i] = do_weight(family, 1.0, distances[i]);
+        for (i = 0; i < dm->n; i++) {
+            distances[i] = SQR(resid[i]) / *scale;
+            weights[i] = do_weight(family, 1., distances[i]);
         }
         /* M-step */
-        IRLS_increment(y, x, dd, fitted, residuals, weights, coef, incr, working);
-        newRSS = norm_sqr(working + dd->p, rdf, 1);
-        *scale = newRSS / dd->n;
+        IRLS_increment(y, x, dm, coef, resid, fitted, weights, working);
+        newRSS = norm_sqr(working + dm->p, rdf, 1);
+        *scale = newRSS / dm->n;
+        if (!fixShape)
+            update_mixture(family, dm, distances, lengths, weights, tol);
 
         /* eval convergence */
         conv = fabs((newRSS - RSS) / (newRSS + ETA_CONV));
         if (conv < tolerance) { /* successful completion */
-            Free(incr); Free(working);
-            return iter;
+            Free(lengths); Free(working);
+            return iter; 
         }
         RSS = newRSS;
     }
-    Free(incr); Free(working);
+    Free(lengths); Free(working);
     return (iter - 1);
 }
 
-void
-IRLS_increment(double *y, double *x, DIMS dd, double *fitted, double *residuals,
-    double *weights, double *coef, double *incr, double *working)
+static void
+IRLS_increment(double *y, double *x, DIMS dm, double *coef, double *resid,
+    double *fitted, double *weights, double *working)
 {   /* increment for direction search in IRLS */
-    int i, j, info = 0, one = 1;
-    char *uplo = "U", *diag = "N", *side = "L", *notrans = "N", *trans = "T";
-    double stepsize = 1.0, wts, *z, *qraux, *work;
+    int i, j, one = 1;
+    double stepsize = 1., wts, *incr, *qraux, *u, *z;
+    char *uplo = "U", *diag = "N", *notrans = "N";
+    QRStruct qr;
 
     /* initialization */
-    z     = (double *) Calloc(dd->n * dd->p, double);
-    qraux = (double *) Calloc(dd->p, double);
-    work  = (double *) Calloc(dd->p, double);
+    incr  = (double *) Calloc(dm->p, double);
+    qraux = (double *) Calloc(dm->p, double);
+    u     = (double *) Calloc(dm->n, double);
+    z     = (double *) Calloc(dm->n * dm->p, double);
 
     /* transformed model matrix and working residuals */
-    for (i = 0; i < dd->n; i++) {
+    for (i = 0; i < dm->n; i++) {
         wts = sqrt(weights[i]);
-        working[i] = wts * residuals[i];
-        for (j = 0; j < dd->p; j++)
-            z[i + j * dd->n] = wts * x[i + j * dd->n];
+        working[i] = wts * resid[i];
+        for (j = 0; j < dm->p; j++)
+            z[i + j * dm->n] = wts * x[i + j * dm->n];
     }
 
     /* solve the transformed LS-problem */
-    F77_CALL(dgeqrf)(&(dd->n), &(dd->p), z, &(dd->n), qraux, work, &(dd->p),
-                     &info);
-    if (info)
-        error("DGEQRF in IRLS_increment gave code %d", info);
-    F77_CALL(dormqr)(side, trans, &(dd->n), &one, &(dd->p), z, &(dd->n), qraux,
-                     working, &(dd->n), work, &(dd->p), &info);
-    if (info)
-        error("DORMQR in IRLS_increment gave code %d", info);
-    Memcpy(incr, working, dd->p);
-    F77_CALL(dtrtrs)(uplo, notrans, diag, &(dd->p), &one, z, &(dd->n), incr,
-                     &(dd->p), &info);
-    if (info)
-        error("DTRTRS in IRLS_increment gave code %d", info);
+    qr = QR_decomp(z, dm->n, dm->n, dm->p, qraux);
+    QR_coef(qr, working, dm->n, one, incr);
+    
     /* update coefficients */
-    F77_CALL(daxpy)(&(dd->p), &stepsize, incr, &one, coef, &one);
+    F77_CALL(daxpy)(&(dm->p), &stepsize, incr, &one, coef, &one);
+    
+    /* compute fitted values */
+    for (i = 0; i < dm->n; i++)
+        u[i] = 0.0;
+    Memcpy(u, coef, dm->p);
+    F77_CALL(dtrmv)(uplo, notrans, diag, &(dm->p), z, &(dm->n), u, &one);
+    QR_qy(qr, u, dm->n, one, fitted);
 
-    /* fitted values and residuals */
-    qr_fitted(dd, z, coef, fitted, qraux, work);
-    for (i = 0; i < dd->n; i++) {
+    /* fitted values and residuals in original scale */
+    for (i = 0; i < dm->n; i++) {
         wts = sqrt(weights[i]);
         fitted[i] /= wts;
-        residuals[i] = y[i] - fitted[i];
+        resid[i] = y[i] - fitted[i];
     }
-    Free(z); Free(qraux); Free(work);
+    
+    QR_free(qr); Free(incr); Free(qraux); Free(u); Free(z);
 }
 
-void
-qr_fitted(DIMS dd, double *z, double *coef, double *fitted, double *qraux,
-    double *work)
-{   /* compute the fitted values */
-    int i, info = 0, one = 1;
-    char *uplo = "U", *diag = "N", *side = "L", *notrans = "N";
-
-    for (i = 0; i < dd->n; i++) 
-        fitted[i] = 0.0;
-    Memcpy(fitted, coef, dd->p);
-    F77_CALL(dtrmv)(uplo, notrans, diag, &(dd->p), z, &(dd->n), fitted, &one);
-    F77_CALL(dormqr)(side, notrans, &(dd->n), &one, &(dd->p), z, &(dd->n),
-                     qraux, fitted, &(dd->n), work, &(dd->p), &info);
-    if (info)
-        error("DORMQR in qr_fitted gave code %d", info);
-}
-
-double
-heavyLm_logLik(FAMILY family, DIMS dd, double *distances, double *scale)
+static double
+lm_logLik(FAMILY family, DIMS dm, double *distances, double *scale)
 {   /* evaluate the log-likelihood function for linear models */
-    double ans, *lengths;
+    double krnl, *lengths;
     int i;
 
-    lengths = (double *) Calloc(dd->n, double);
-    for (i = 0; i < dd->n; i++)
-        lengths[i] = 1.0;
-    ans = -0.5 * dd->n * log(*scale);
-    ans += logLik_kernel(family, dd, lengths, distances);
+    lengths = (double *) Calloc(dm->n, double);
+    for (i = 0; i < dm->n; i++)
+        lengths[i] = 1.;
+    krnl = logLik_kernel(family, dm, lengths, distances);
     Free(lengths);
-    return ans;
+    return (krnl - .5 * dm->n * log(*scale));
 }
 
-void
-heavyLm_acov(FAMILY family, DIMS dd, double *x, double *scale, int ndraws,
-    double *acov)
+static void
+lm_acov(FAMILY family, DIMS dm, double *x, double *scale, int ndraws, double *acov)
 {   /* evaluate the Fisher information matrix */
-    int job = 1;
+    int info = 0, job = 1;
     double factor, *qraux, *R;
     QRStruct qr;
 
     /* initialization */
-    qraux = (double *) Calloc(dd->p, double);
-    R     = (double *) Calloc(dd->p * dd->p, double);
+    qraux = (double *) Calloc(dm->p, double);
+    R     = (double *) Calloc(dm->p * dm->p, double);
 
     /* unscaled Fisher information matrix */
-    qr = QR_decomp(x, dd->n, dd->n, dd->p, qraux);
-    QR_store_R(qr, R, dd->p);
-    invert_triangular(job, R, dd->p, dd->p);
-    outerprod(R, dd->p, dd->p, dd->p, R, dd->p, dd->p, dd->p, acov);
+    qr = QR_decomp(x, dm->n, dm->n, dm->p, qraux);
+    QR_store_R(qr, R, dm->p);
+    invert_triangular(R, dm->p, dm->p, job, &info);
+    if (info)
+            error("DTRTRI in lm_acov gave code %d", info);    
+    outerprod(R, dm->p, dm->p, dm->p, R, dm->p, dm->p, dm->p, acov);
     Free(qraux); QR_free(qr);
 
     /* scaling */
-    factor = *scale / acov_scale(family, 1.0, ndraws);
-    scale_mat(acov, dd->p, acov, dd->p, dd->p, dd->p, factor);
+    factor = *scale / acov_scale(family, 1., ndraws);
+    scale_mat(acov, dm->p, acov, dm->p, dm->p, dm->p, factor);
     Free(R);
 }

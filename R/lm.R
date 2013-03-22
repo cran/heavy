@@ -1,11 +1,11 @@
 heavyLm <- 
 function(formula, data, family = Student(df = 4), subset, na.action, 
-  control = list(), model = TRUE, x = FALSE, y = FALSE, contrasts = NULL)
+  control = heavy.control(), model = TRUE, x = FALSE, y = FALSE, contrasts = NULL)
 {
   ret.x <- x
   ret.y <- y
   Call <- match.call()
-  mf <- match.call(expand = FALSE)
+  mf <- match.call(expand.dots = FALSE)
   mf$family <- mf$control <- mf$model <- mf$x <- mf$y <- mf$contrasts <- NULL
   mf$drop.unused.levels <- TRUE
   mf[[1]] <- as.name("model.frame")
@@ -23,22 +23,26 @@ function(formula, data, family = Student(df = 4), subset, na.action,
   res <- fit$residuals
   cf <- fit$coefficients
   sigma2 <- sum(res^2) / n
+
   ## extract family info
   if (!inherits(family, "heavy.family"))
     stop("Use only with 'heavy.family' objects")
   if (is.null(family$family))
     stop("'family' not recognized")
-  fltype <- family$which
-  if ((fltype < 0) || (fltype > 4))
+  kind <- family$which
+  if ((kind < 0) || (kind > 4))
     stop("not valid 'family' object")
-  settings <- c(fltype, family$npars, unlist(family$pars))
-  ## set control values 
-  control <- heavy.control()
-  ctrl <- unlist(control)[1:3]
+  settings <- c(kind, family$npars, unlist(family$pars))
+
+  ## set control values
+  if (missing(control))
+    control <- heavy.control()
+  ctrl <- unlist(control)[1:4]
   ctrl <- c(ctrl, 0)
+
   ## Call fitter
   now <- proc.time()
-  fit <- .C("heavyLm_fit",
+  fit <- .C("lm_fit",
             y = as.double(y),
             x = as.double(x),
             dims = as.integer(dx),
@@ -58,18 +62,25 @@ function(formula, data, family = Student(df = 4), subset, na.action,
   out <- list(call = Call,
               dims = dx,
               family = family,
+              settings = fit$settings,
               coefficients = fit$coefficients,
               sigma2 = fit$sigma2,
               fitted.values = fit$fitted,
               residuals = fit$residuals,
               logLik = fit$logLik,
-              numIter = fit$control[4],
+              numIter = fit$control[5],
               control = control,
               weights = fit$weights,
               distances = fit$distances,
               acov = matrix(fit$acov, ncol = p),
               speed = speed,
               converged = FALSE)
+  if (!control$fix.shape) {
+    if ((kind > 1) && (kind < 4)) {
+      df <- signif(out$settings[3], 6)
+      out$family$call <- call(out$family$family, df = df)
+    }
+  }
   if (out$numIter < control$maxIter)
     out$converged <- TRUE
   names(out$coefficients) <- xnames
@@ -91,11 +102,12 @@ print.heavyLm <-
 function(x, digits = 4, ...)
 {
   cat("Call:\n")
+  x$call$family <- x$family$call
   dput(x$call, control = NULL)
   if (x$converged)
     cat("Converged in", x$numIter, "iterations\n")
   else
-    cat("Maximum number of iterations exceeded")
+    cat("Maximum number of iterations exceeded\n")
   cat("\nCoefficients:\n ")
   print(format(round(x$coef, digits = digits)), quote = F, ...)
   nobs <- x$dims[1]
@@ -130,20 +142,21 @@ function (object, ...)
 print.summary.heavyLm <-
 function(x, digits = 4, ...)
 {
-  cat("Call:\n")
-  dput(x$call, control = NULL)
+  cat("Linear model under heavy-tailed distributions\n")
+  cat(" Data:", paste(as.name(x$call$data), ";", sep = ""))
+  print(x$family)
   resid <- x$residuals
   nobs <- x$dims[1]
   p <- x$dims[2]
   rdf <- nobs - p
   if (rdf > 5) {
-    cat("Residuals:\n")
+    cat("\nResiduals:\n")
 		rq <- quantile(resid)
 		names(rq) <- c("Min", "1Q", "Median", "3Q", "Max")
 		print(rq, digits = digits, ...)
 	}
 	else if(rdf > 0) {
-	 cat("Residuals:\n")
+	 cat("\nResiduals:\n")
 	 print(resid, digits = digits, ...)
   }
   cat("\nCoefficients:\n ")
