@@ -2,7 +2,7 @@
 \docType{data}
 \alias{life}
 
-\title{Data on Per-Capita Income and Life Expectancy}
+\title{Data on per-capita income and life expectancy}
 \description{
   The data represent life expectancies and per capita income in 1974 dollars for
   101 countries in the early 1970's. The data were originally published in the

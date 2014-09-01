@@ -1,12 +1,15 @@
 useDynLib(heavy)
 
-export(Cauchy, contaminated, heavy.control, heavy.family, heavyLm, heavyLme,
-       heavyLme.formula, heavyPS, normal, rmCauchy, rmcnorm, rmnorm, rmslash,
-       rmt, rsphere, slash, Student)
+export(Cauchy, contaminated, heavy.control, heavy.family, heavyFit, heavyLm, heavyLme,
+       heavyLme.formula, heavyPS, normal, rmCauchy, rmcnorm, rmnorm, rmslash, rmt,
+       rsphere, slash, Student)
 
 ## register S3 methods
 
 S3method(print, heavy.family)
+S3method(print, heavyFit)
+S3method(summary, heavyFit)
+S3method(print, summary.heavyFit)
 S3method(print, heavyLm)
 S3method(summary, heavyLm)
 S3method(print, summary.heavyLm)

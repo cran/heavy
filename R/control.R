@@ -1,5 +1,5 @@
 heavy.control <-
-function(maxIter = 8000, tolerance = 1e-6, fix.shape = FALSE, ndraws = 6000,
+function(maxIter = 4000, tolerance = 1e-6, fix.shape = FALSE, ndraws = 8000,
   algorithm = c("EM", "NEM"), ncycles = 5)
 {
   algorithm <- match.arg(algorithm)

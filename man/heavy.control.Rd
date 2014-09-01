@@ -3,20 +3,20 @@
 
 \title{Set control parameters}
 \description{
-  Allows users to set parameters for routines avalaibles in heavy.
+  Allows users to set control parameters for routines available in \code{heavy}.
 }
 \usage{
-heavy.control(maxIter = 8000, tolerance = 1e-6, fix.shape = FALSE,
-  ndraws = 6000, algorithm = c("EM", "NEM"), ncycles = 5)
+heavy.control(maxIter = 4000, tolerance = 1e-6, fix.shape = FALSE,
+  ndraws = 8000, algorithm = c("EM", "NEM"), ncycles = 5)
 }
 
 \arguments{
-  \item{maxIter}{  maximum number of iterations. The default is 8000.}
+  \item{maxIter}{  maximum number of iterations. The default is 4000.}
   \item{tolerance}{  the relative tolerance in the iterative algorithm.}
-  \item{fix.shape}{  logical. If \code{TRUE} the shape parameters of the corresponding
-  heavy-tailed distribution are estimated from data. In the current version of the
-  package only is avaliable the estimation for the Student-t and slash distributions.}
-  \item{ndraws}{  independent draws for Monte Carlo integration. The default is 6000.}
+  \item{fix.shape}{  whether the shape parameters should be kept fixed in the fitting
+  processes. The default is \code{fix.shape = FALSE}. Currently, only is available for
+  the Student-t and slash distributions.}
+  \item{ndraws}{  independent draws for Monte Carlo integration. The default is 8000.}
   \item{algorithm}{  character string specifying the algorithm to use. The default 
   algorithm is an EM algorithm. Other possible value is "NEM" for the nested EM algorithm.}
   \item{ncycles}{  number of cycles used in the nested EM algorithm, not used if \code{algorithm="EM"}. 
@@ -24,12 +24,13 @@ heavy.control(maxIter = 8000, tolerance = 1e-6, fix.shape = FALSE,
 }
 
 \value{
-  A list of control arguments to be used in a call to \code{\link{heavyLm}}, \code{\link{heavyLme}}
-  or \code{\link{heavyPS}}.
+  A list of control arguments to be used in a call to the fitter (i.e., \code{\link{heavyFit}}, \code{\link{heavyLm}},
+  \code{\link{heavyLme}} or \code{\link{heavyPS}} functions).
 
-  A call to \code{heavy.control} can be used directly in the control argument 
-  of the call to \code{\link{heavyLm}}, \code{\link{heavyLme}} or \code{\link{heavyPS}}.
+  A call to \code{heavy.control} can be used directly in the control argument of the call to the fitter.
 }
+
+\seealso{\code{\link{heavyFit}}, \code{\link{heavyLm}}, \code{\link{heavyLme}}, \code{\link{heavyPS}}}
 
 \examples{
 ctrl <- heavy.control(maxIter = 200, tol = 1e-04, ndraws = 9000)

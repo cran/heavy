@@ -18,7 +18,7 @@ rmslash(n = 1, center = rep(0, nrow(Scatter)), Scatter = diag(length(center)),
 }
 
 \value{
-  If \code{n = 1} a vector of the same length as \code{mean}, otherwise a
+  If \code{n = 1} a vector of the same length as \code{center}, otherwise a
   matrix of \code{n} rows of random vectors.
 }
 

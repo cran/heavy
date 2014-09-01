@@ -12,7 +12,7 @@
 \usage{data(dental)}
 \format{data frame with 108 rows and 4 columns.}
 \source{
-  Potthoff, R.F. and Roy, S.N. (1964). 
+  Potthoff, R.F., and Roy, S.N. (1964). 
   A generalized multivariate analysis model useful especially for growth curve problems.
   \emph{Biometrika} \bold{51}, 313-326.
 }

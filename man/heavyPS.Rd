@@ -36,6 +36,27 @@ heavyPS(x, y, family = Student(df = 4), nseg = 20, deg = 3, ord = 2,
 \value{
   an object of class \code{heavyPS} representing the fitted model. Generic 
   functions \code{print} and \code{summary}, show the results of the fit.
+  
+  The following components must be included in a legitimate \code{heavyPS} object.
+  \item{call}{  a list containing an image of the \code{heavyPS} call that produced the object.}
+  \item{design}{  a list containing the B-spline basis matrix, the triangular factor of the penalty matrix and a numeric vector of knot positions with non-decreasing values.}
+  \item{method}{  one of "gcv" or "none", depending on the fitting criterion used.}
+  \item{family}{  the \code{\link{heavy.family}} object used in the fitting process.}
+  \item{coefficients}{  final estimate of the coefficients vector.}
+  \item{scale}{  final scale estimate of the random error.}
+  \item{lambda}{  estimated smoothing parameter for the model (if requested).}
+  \item{fitted.values}{  fitted model predictions of expected value for each datum.}
+  \item{residuals}{  the residuals for the fitted model.}
+  \item{plogLik}{  the penalized log-likelihood at convergence.}
+  \item{edf}{  the effective number of parameters.}
+  \item{gcv}{  the minimized smoothing parameter selection score (weighted GCV).}
+  \item{pen}{  the penalty term at convergence.}
+  \item{numIter}{  the number of iterations used in the iterative algorithm.}
+  \item{weights}{  estimated weights corresponding to the assumed heavy-tailed distribution.}
+  \item{distances}{  squared of scaled residuals.}
+  \item{xgrid}{  grid of x-values used to fit the P-spline.}
+  \item{ygrid}{  estimated curve on the x-grid, required to plot the fitted P-spline.}
+  \item{shape}{  estimated shape parameters, only available if requested.}
 }
 
 \references{
@@ -43,8 +64,8 @@ heavyPS(x, y, family = Student(df = 4), nseg = 20, deg = 3, ord = 2,
   Flexible smoothing using B-splines and penalties (with discussion).
   \emph{Statistical Science} \bold{11}, 89-121.
   
-  Osorio, F. (2013). 
-  On outliers accommodation and influence diagnostics for penalized splines.
+  Osorio, F. (2014).
+  Influence diagnostics for robust P-splines using scale mixture of normal distributions.
   Working paper.
 }
 

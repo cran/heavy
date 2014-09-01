@@ -29,8 +29,21 @@ heavyLm(formula, data, family = Student(df = 4), subset, na.action,
 }
 
 \value{
-  an object of class \code{heavyLm} representing the linear model fit. Generic 
+  An object of class \code{heavyLm} representing the linear model fit. Generic 
   functions \code{print} and \code{summary}, show the results of the fit.
+  
+  The following components must be included in a legitimate \code{heavyLm} object.
+  \item{call}{  a list containing an image of the \code{heavyLm} call that produced the object.}
+  \item{family}{  the \code{\link{heavy.family}} object used, with the estimated shape parameters (if requested).}
+  \item{coefficients}{  final estimate of the coefficients vector.}
+  \item{sigma2}{  final scale estimate of the random error.}
+  \item{fitted.values}{  the fitted mean values.}
+  \item{residuals}{  the residuals, that is response minus fitted values.}
+  \item{logLik}{  the log-likelihood at convergence.}
+  \item{numIter}{  the number of iterations used in the iterative algorithm.}
+  \item{weights}{  estimated weights corresponding to the assumed heavy-tailed distribution.}
+  \item{distances}{  squared of scaled residuals.}
+  \item{acov}{  asymptotic covariance matrix of the coefficients estimates.}
 }
 
 \references{

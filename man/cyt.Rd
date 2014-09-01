@@ -2,9 +2,9 @@
 \docType{data}
 \alias{cyt}
 
-\title{Concha y Toro Vineyards}
+\title{Concha y Toro vineyards}
 \description{
-  Monthly returns of Concha y Toro Vineyard collected over the period among the
+  Monthly returns of Concha y Toro vineyard collected over the period among the
   months of March 1990 to April 1999.
 }
 \usage{data(cyt)}
@@ -17,7 +17,7 @@
   }
 }
 \source{
-  Osorio, F. and Galea, M. (2006).
+  Osorio, F., and Galea, M. (2006).
   Detection of a change-point in student-t linear regression models.
   \emph{Statistical Papers} \bold{47}, 31-48.
 }

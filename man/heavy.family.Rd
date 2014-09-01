@@ -8,8 +8,9 @@
 
 \title{Family objects for heavy-tailed distributions}
 \description{
-  Provide a convenient way to specify the details of the models used by functions
-  \code{\link{heavyLm}}, \code{\link{heavyLme}} and \code{\link{heavyPS}}.
+  Provide a convenient way to specify the details of the models used by the fitter functions.
+  (i.e., \code{\link{heavyFit}}, \code{\link{heavyLm}}, \code{\link{heavyLme}} and \code{\link{heavyPS}}
+  functions).
 }
 \usage{
 normal()
@@ -24,9 +25,11 @@ contaminated(epsilon = 0.05, vif = 0.25)
   \item{epsilon, vif}{  percentage of outliers contamination and variance inflation factor.}
 }
 \details{
-  \code{heavy.family} is a generic function to create info about some heavy-tailed distributions which 
-  is passed to the estimation algorithm.
+  \code{heavy.family} is a generic function to create information about the selected heavy-tailed distribution
+  which is passed to the estimation algorithm.
 }
+
+\seealso{\code{\link{heavyFit}}, \code{\link{heavyLm}}, \code{\link{heavyLme}}, \code{\link{heavyPS}}}
 
 \examples{
 CauchyFmly <- Student(df = 1)

@@ -351,7 +351,6 @@ acov_scale_cauchy(double length)
     double acov;
 
     acov = (length + 1.) / (length + 3.);
-    acov *= length;
     return acov;
 }
 
@@ -361,7 +360,6 @@ acov_scale_student(double length, double df)
     double acov;
 
     acov = (df + length) / (df + length + 2.);
-    acov *= length;
     return acov;
 }
 
@@ -369,7 +367,7 @@ static double
 acov_scale_slash(double length, double df, int ndraws)
 {   /* slash scale */
     int i;
-    double accum = 0., u, w, *z;
+    double accum = 0., acov, u, w, *z;
 
     if (df > 30.)
         return 1.;
@@ -381,16 +379,18 @@ acov_scale_slash(double length, double df, int ndraws)
         w = weight_slash(length, df, u);
         accum += SQR(w) * u;
     }
+    accum /= ndraws;
+    
     PutRNGstate();
     Free(z);
-    return (accum / ndraws);
+    return (accum / length);
 }
 
 static double
 acov_scale_contaminated(double length, double epsilon, double vif, int ndraws)
 {   /* contaminated normal scale */
     int i;
-    double accum = 0., u, w, *z;
+    double accum = 0., acov, u, w, *z;
 
     z = (double *) Calloc(length, double);
     GetRNGstate();
@@ -400,9 +400,11 @@ acov_scale_contaminated(double length, double epsilon, double vif, int ndraws)
         w = weight_contaminated(length, epsilon, vif, u);
         accum += SQR(w) * u;
     }
+    accum /= ndraws;
+    
     PutRNGstate();
     Free(z);
-    return (accum / ndraws);
+    return (accum / length);
 }
 
 double

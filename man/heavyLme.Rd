@@ -28,12 +28,27 @@ heavyLme(fixed, random, groups, data, family = Student(df = 4),
 }
 
 \value{
-  an object of class \code{heavyLme} representing the linear mixed-effects model fit. Generic function \code{print}
+  An object of class \code{heavyLme} representing the linear mixed-effects model fit. Generic function \code{print}
   and \code{summary}, show the results of the fit.
+  
+  The following components must be included in a legitimate \code{heavyLme} object.
+  \item{lmeData}{  an object representing a list of mixed-effects model components.}
+  \item{call}{  a list containing an image of the \code{heavyLme} call that produced the object.}
+  \item{family}{  the \code{\link{heavy.family}} object used, with the estimated shape parameters (if requested).}
+  \item{coefficients}{  final estimate of the fixed effects.}
+  \item{theta}{  final estimate of the scale parameters associated to the random effects.}
+  \item{scale}{  final scale estimate of the random error.}
+  \item{logLik}{  the log-likelihood at convergence.}
+  \item{numIter}{  the number of iterations used in the iterative algorithm.}
+  \item{ranef}{  a matrix with the estimated random effects.}
+  \item{weights}{  estimated weights corresponding to the assumed heavy-tailed distribution.}
+  \item{distances}{  estimated squared Mahalanobis distances.}
+  \item{Fitted}{  a data frame with the \code{"marginal"} and \code{"conditional"} fitted values as columns.}
+  \item{Resid}{  a data frame with the \code{"marginal"} and \code{"conditional"} residuals as columns.}
 }
 
 \references{
-  Pinheiro, J.C., Liu, C. and Wu, Y.N. (2001).
+  Pinheiro, J.C., Liu, C., and Wu, Y.N. (2001).
   Efficient algorithms for robust estimation in linear mixed-effects models using the multivariate \emph{t} distribution.
   \emph{Journal of Computational and Graphical Statistics} \bold{10}, 249--276.
 }
