@@ -189,14 +189,14 @@ pre_decomp(double *ZX, double *y, double *qraux, DIMS dm, LENGTHS glen)
 static int
 lme_iterate(LME model)
 {   /* EM estimation for lme under heavy-tailed distributions */
-    int iter, cycle;
+    int iter = 0, cycle;
     double conv, RSS, newRSS;
 
     /* initialization */
     RSS = (double) model->dm->N;
 
     /* main loop */
-    for (iter = 1; iter <= model->maxIter; iter++) {
+    repeat {
         /* internal EM cycles */
         for (cycle = 1; cycle <= model->ncycles; cycle++)
             internal_EMcycle(model);
@@ -205,10 +205,14 @@ lme_iterate(LME model)
         newRSS  = sum_abs(model->distances, model->dm->n, 1);
         newRSS *= (model->scale)[0];
         
+        iter++;
+        
         /* eval convergence */
-        conv = fabs((newRSS - RSS) / (newRSS + ETA_CONV));
+        conv = fabs((newRSS - RSS) / (newRSS + ABSTOL));
         if (conv < model->tolerance) /* successful completion */
             return iter;
+        if (iter >= model->maxIter)
+            break; /* maximum number of iterations exceeded */
         RSS = newRSS;
     }
     return (iter - 1);
@@ -568,3 +572,4 @@ lme_acov_coef(ACOV object)
     copy_mat(object->acov, dm->p, accum, dm->p, dm->p, dm->p);
     Free(accum); Free(prod); Free(cross); Free(outer);
 }
+

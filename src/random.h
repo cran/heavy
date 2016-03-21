@@ -21,4 +21,9 @@ extern void rand_spherical_contaminated(double *, double, double, int, int);
 /* uniformly distributed random vectors */
 extern void rand_unif_sphere(double *, int, int);
 
+/* right truncated Gamma distribution */
+extern double rtgamma_right_standard(double, double);
+extern double rtgamma_right(double, double, double);
+
 #endif /* HEAVY_RANDOM_H */
+

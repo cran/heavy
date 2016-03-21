@@ -32,7 +32,8 @@ typedef struct LM_struct {
       tolerance;    /* convergence tolerance */
 } LM_struct, *LM;
 
-/* estimation in linear models under heavy tailed distributions */
+/* estimation in uni/multivariate linear models under heavy tailed distributions */
 extern void lm_fit(double *, double *, int *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *);
+extern void mlm_fit(double *, double *, int *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *);
 
 #endif /* HEAVY_LM_FIT_H */

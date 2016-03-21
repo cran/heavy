@@ -1,9 +1,12 @@
 #include "specfun.h"
 
 /* declaration of static functions */
+
 static double pg_asymp(double, double);
 static double pg_continued_fraction(double, double);
 static double pg_series_expansion(double, double);
+
+/* ..end declarations */
 
 double
 pgamma_asymp(double x, double a, double scale)
@@ -24,16 +27,16 @@ pgamma_derivative(double x, double a, double scale)
     double ans;
 
     if (a <= 0. || scale <= 0.)
-	return 0.;	/* should not happen */
+        return 0.;	/* should not happen */
 
     x *= scale;
     
     if (a > 600.)
-	ans = pg_asymp(x, a);
+        ans = pg_asymp(x, a);
     else if (x > 1. && x >= a)
-	ans = pg_continued_fraction(x, a);
+        ans = pg_continued_fraction(x, a);
     else
-	ans = pg_series_expansion(x, a);
+        ans = pg_series_expansion(x, a);
     
     return ans;
 }
@@ -83,39 +86,38 @@ pg_continued_fraction(double x, double a)
     i  = 0.;
 
     while (i < max_it) {
-	i++;
-	
-	p--;
-	b += 2;
-	g = i * p;
-	
-	c5 = b * c3 + g * c1;
-	c6 = b * c4 + g * c2;
-	
-	d5 = b * d3 - c3 + g * d1 + i * c1;
-	d6 = b * d4 - c4 + g * d2 + i * c2;
-	
-	if (fabs(c6) > DBL_EPSILON) {
-	    s = c5 / c6;
-	    
-	    if (fabs(s - s0) <= eps * s) {
-		s_dot = (d5 - s * d6) / c6;
-		return (-f * s_dot - f_dot * s);
-	    }
-	    
-	    s0 = s;
-	}
-	    
-	c1 = c3; c2 = c4; c3 = c5; c4 = c6;
-	d1 = d3; d2 = d4; d3 = d5; d4 = d6;
-	
-	if (fabs(c5) > scalefactor) {
-	    /* re-scale terms in continued fraction if terms are large */
-	    c1 /= scalefactor; c2 /= scalefactor;
-	    c3 /= scalefactor; c4 /= scalefactor;
-	    d1 /= scalefactor; d2 /= scalefactor;
-	    d3 /= scalefactor; d4 /= scalefactor;
-	}
+        i++;
+        
+        p--;
+        b += 2;
+        g = i * p;
+        
+        c5 = b * c3 + g * c1;
+        c6 = b * c4 + g * c2;
+        
+        d5 = b * d3 - c3 + g * d1 + i * c1;
+        d6 = b * d4 - c4 + g * d2 + i * c2;
+        
+        if (fabs(c6) > DBL_EPSILON) {
+            s = c5 / c6;
+            
+            if (fabs(s - s0) <= eps * s) {
+                s_dot = (d5 - s * d6) / c6;
+                return (-f * s_dot - f_dot * s);
+            }
+            s0 = s;
+        }
+        
+        c1 = c3; c2 = c4; c3 = c5; c4 = c6;
+        d1 = d3; d2 = d4; d3 = d5; d4 = d6;
+        
+        if (fabs(c5) > scalefactor) {
+            /* re-scale terms in continued fraction if terms are large */
+            c1 /= scalefactor; c2 /= scalefactor;
+            c3 /= scalefactor; c4 /= scalefactor;
+            d1 /= scalefactor; d2 /= scalefactor;
+            d3 /= scalefactor; d4 /= scalefactor;
+        }
     }
     
     /* must not reach here */
@@ -150,24 +152,23 @@ pg_series_expansion(double x, double a)
     p = a;
     
     do {
-	p++;
-	
-	rel = term_dot / term;
-	term_dot = rel - 1. / p;
-	
-	term *= x / p;
-	sum += term;
-	
-	term_dot *= term;
-	sum_dot += term_dot;
-	
-	if (p > max_it + a) { /* convergence of the expansion is not achieved */
-	    warning("non-convergence in pg_series_expansion");
-	    break;
-	}
+        p++;
+        
+        rel = term_dot / term;
+        term_dot = rel - 1. / p;
+        
+        term *= x / p;
+        sum += term;
+        
+        term_dot *= term;
+        sum_dot += term_dot;
+        
+        if (p > max_it + a) { /* convergence of the expansion is not achieved */
+            warning("non-convergence in pg_series_expansion");
+            break;
+        }
 
     } while (term > sum * DBL_EPSILON);
 
     return (f_dot * sum + f * sum_dot);
 } 
-

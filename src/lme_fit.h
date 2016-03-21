@@ -70,3 +70,4 @@ extern void lme_fitted(double *, int *, int *, int *, double *, double *, double
 extern void lme_acov(double *, int *, int *, int *, double *, double *, double *, double *, double *);
 
 #endif /* HEAVY_LME_FIT_H */
+

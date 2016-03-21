@@ -1,6 +1,7 @@
 #include "random.h"
 
 /* declaration of static functions */
+static int ncomp_optimal(double);
 
 /* functions to deal with dims objects */
 static DIMS dims(int *);
@@ -46,10 +47,10 @@ rand_unif_sphere(double *y, int n, int p)
     double radial;
 
     for (i = 0; i < n; i++) {
-	for (j = 0; j < p; j++)
-	    y[j] = norm_rand();
-	radial = 1. / F77_CALL(dnrm2)(&p, y, &inc);
-	F77_CALL(dscal)(&p, &radial, y, &inc);
+        for (j = 0; j < p; j++)
+            y[j] = norm_rand();
+        radial = 1. / F77_CALL(dnrm2)(&p, y, &inc);
+        F77_CALL(dscal)(&p, &radial, y, &inc);
         y += p;
     }
 }
@@ -68,13 +69,13 @@ rand_norm(double *y, int *pdims, double *center, double *Scatter)
     GetRNGstate();
     chol_decomp(Scatter, dm->p, dm->p, job, &info);
     if (info)
-	error("DPOTRF in cholesky decomposition gave code %d", info);
+        error("DPOTRF in cholesky decomposition gave code %d", info);
     rand_spherical_norm(y, dm->n, dm->p);
     F77_CALL(dtrmm)(side, uplo, trans, diag, &(dm->p), &(dm->n), &one, Scatter,
-		    &(dm->p), y, &(dm->p));
+                    &(dm->p), y, &(dm->p));
     for (i = 0; i < dm->n; i++) {
-	F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
-	y += dm->p;
+        F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
+        y += dm->p;
     }
     PutRNGstate();
     dims_free(dm);
@@ -86,9 +87,9 @@ rand_spherical_norm(double *y, int n, int p)
     int i, j;
 
     for (i = 0; i < n; i++) {
-	for (j = 0; j < p; j++)
-	    y[j] = norm_rand();
-	y += p;
+        for (j = 0; j < p; j++)
+            y[j] = norm_rand();
+        y += p;
     }
 }
 
@@ -106,13 +107,13 @@ rand_cauchy(double *y, int *pdims, double *center, double *Scatter)
     GetRNGstate();
     chol_decomp(Scatter, dm->p, dm->p, job, &info);
     if (info)
-	error("DPOTRF in cholesky decomposition gave code %d", info);
+        error("DPOTRF in cholesky decomposition gave code %d", info);
     rand_spherical_cauchy(y, dm->n, dm->p);
     F77_CALL(dtrmm)(side, uplo, trans, diag, &(dm->p), &(dm->n), &one, Scatter,
-		    &(dm->p), y, &(dm->p));
+                    &(dm->p), y, &(dm->p));
     for (i = 0; i < dm->n; i++) {
-	F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
-	y += dm->p;
+        F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
+        y += dm->p;
     }
     PutRNGstate();
     dims_free(dm);
@@ -125,12 +126,12 @@ rand_spherical_cauchy(double *y, int n, int p)
     double tau, radial;
 
     for (i = 0; i < n; i++) {
-	for (j = 0; j < p; j++)
-	    y[j] = norm_rand();
-	tau = rgamma(.5, 2.);
-	radial = R_pow(tau, -.5);
-	F77_CALL(dscal)(&p, &radial, y, &inc);
-	y += p;
+        for (j = 0; j < p; j++)
+            y[j] = norm_rand();
+        tau = rgamma(.5, 2.);
+        radial = R_pow(tau, -.5);
+        F77_CALL(dscal)(&p, &radial, y, &inc);
+        y += p;
     }
 }
 
@@ -148,13 +149,13 @@ rand_student(double *y, int *pdims, double *center, double *Scatter, double *df)
     GetRNGstate();
     chol_decomp(Scatter, dm->p, dm->p, job, &info);
     if (info)
-	error("DPOTRF in cholesky decomposition gave code %d", info);
+        error("DPOTRF in cholesky decomposition gave code %d", info);
     rand_spherical_student(y, *df, dm->n, dm->p);
     F77_CALL(dtrmm)(side, uplo, trans, diag, &(dm->p), &(dm->n), &one, Scatter,
-		    &(dm->p), y, &(dm->p));
+                    &(dm->p), y, &(dm->p));
     for (i = 0; i < dm->n; i++) {
-	F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
-	y += dm->p;
+        F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
+        y += dm->p;
     }
     PutRNGstate();
     dims_free(dm);
@@ -167,12 +168,12 @@ rand_spherical_student(double *y, double df, int n, int p)
     double tau, radial;
 
     for (i = 0; i < n; i++) {
-	for (j = 0; j < p; j++)
-	    y[j] = norm_rand();
-	tau = rgamma(df / 2., 2. / df);
-	radial = R_pow(tau, -.5);
-	F77_CALL(dscal)(&p, &radial, y, &inc);
-	y += p;
+        for (j = 0; j < p; j++)
+            y[j] = norm_rand();
+        tau = rgamma(df / 2., 2. / df);
+        radial = R_pow(tau, -.5);
+        F77_CALL(dscal)(&p, &radial, y, &inc);
+        y += p;
     }
 }
 
@@ -190,13 +191,13 @@ rand_slash(double *y, int *pdims, double *center, double *Scatter, double *df)
     GetRNGstate();
     chol_decomp(Scatter, dm->p, dm->p, job, &info);
     if (info)
-	error("DPOTRF in cholesky decomposition gave code %d", info);
+        error("DPOTRF in cholesky decomposition gave code %d", info);
     rand_spherical_slash(y, *df, dm->n, dm->p);
     F77_CALL(dtrmm)(side, uplo, trans, diag, &(dm->p), &(dm->n), &one, Scatter,
-		    &(dm->p), y, &(dm->p));
+                    &(dm->p), y, &(dm->p));
     for (i = 0; i < dm->n; i++) {
-	F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
-	y += dm->p;
+        F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
+        y += dm->p;
     }
     PutRNGstate();
     dims_free(dm);
@@ -209,12 +210,12 @@ rand_spherical_slash(double *y, double df, int n, int p)
     double tau, radial;
 
     for (i = 0; i < n; i++) {
-	for (j = 0; j < p; j++)
-	    y[j] = norm_rand();
-	tau = rbeta(df, 1.);
-	radial = R_pow(tau, -.5);
-	F77_CALL(dscal)(&p, &radial, y, &inc);
-	y += p;
+        for (j = 0; j < p; j++)
+            y[j] = norm_rand();
+        tau = rbeta(df, 1.);
+        radial = R_pow(tau, -.5);
+        F77_CALL(dscal)(&p, &radial, y, &inc);
+        y += p;
     }
 }
 
@@ -233,13 +234,13 @@ rand_contaminated(double *y, int *pdims, double *center, double *Scatter,
     GetRNGstate();
     chol_decomp(Scatter, dm->p, dm->p, job, &info);
     if (info)
-	error("DPOTRF in cholesky decomposition gave code %d", info);
+        error("DPOTRF in cholesky decomposition gave code %d", info);
     rand_spherical_contaminated(y, *eps, *vif, dm->n, dm->p);
     F77_CALL(dtrmm)(side, uplo, trans, diag, &(dm->p), &(dm->n), &one, Scatter,
-		    &(dm->p), y, &(dm->p));
+                    &(dm->p), y, &(dm->p));
     for (i = 0; i < dm->n; i++) {
-	F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
-	y += dm->p;
+        F77_CALL(daxpy)(&(dm->p), &one, center, &inc, y, &inc);
+        y += dm->p;
     }
     PutRNGstate();
     dims_free(dm);
@@ -253,11 +254,75 @@ rand_spherical_contaminated(double *y, double eps, double vif, int n, int p)
 
     radial = 1. / vif;
     for (i = 0; i < n; i++) {
-	for (j = 0; j < p; j++)
-	    y[j] = norm_rand();
-	unif = unif_rand();
-	if (unif > 1. - eps)
-	    F77_CALL(dscal)(&p, &radial, y, &inc);
-	y += p;
+        for (j = 0; j < p; j++)
+            y[j] = norm_rand();
+        unif = unif_rand();
+        if (unif > 1. - eps)
+            F77_CALL(dscal)(&p, &radial, y, &inc);
+        y += p;
     }
+}
+
+/* random number generation of right truncated Gamma distribution using mixtures. 
+ * Original C code from Anne Philippe (1997).
+ */
+
+static int
+ncomp_optimal(double b)
+{   /* optimal number of components for p = 0.95 fixed */
+    double ans, q = 1.644853626951;
+    ans = 0.25 * R_pow_di(q * sqrt(q * q + 4. * b), 2);
+    return ((int) ftrunc(ans));
+}
+
+double
+rtgamma_right_standard(double a, double b)
+{   /* random number generation from the gamma with right truncation point t = 1, i.e. TG^-(a,b,1) */
+    int n, i, j;
+    double x, u, y, z, yy, zz;
+    double *wl, *wlc;
+
+    n = ncomp_optimal(b);
+    wl  = (double *) Calloc(n + 2, double);
+    wlc = (double *) Calloc(n + 2, double);
+
+    wl[0] = 1.0; wlc[0] = 1.0;
+    for (i = 1; i <= n; i++) {
+        wl[i]  = wl[i-1] * b / (a + i);
+        wlc[i] = wlc[i-1] + wl[i];
+    }
+    for (i = 0; i <= n; i++)
+        wlc[i] = wlc[i] / wlc[n];
+    y = 1.0; yy = 1.0;
+    for (i = 1; i <= n; i++) {
+        yy *= b / i;
+        y  += yy;
+    }
+
+    repeat {
+        u = unif_rand();
+        j = 0;
+        while (u > wlc[j])
+            j += 1;
+        x = rbeta(a, (double) j + 1);
+        u = unif_rand();
+        z = 1.0; zz = 1.0;
+        for (i = 1; i <= n; i++) {
+            zz *= (1 - x) * b / i;
+            z  += zz;
+        }
+        z = exp(-b * x) * y / z;
+        if (u <= z)
+            break;
+    }
+    Free(wl); Free(wlc);
+    return x;
+}
+
+double
+rtgamma_right(double shape, double rate, double truncation)
+{   /* random number generation from the gamma with right truncation point, i.e. TG^-(a,b,t) */
+    double x;
+    x = rtgamma_right_standard(shape, rate * truncation) * truncation;
+    return x;
 }

@@ -19,6 +19,8 @@ static void update_Scatter(MV);
 static void mv_acov(FAMILY, DIMS, double *, int, double *);
 static double mv_logLik(FAMILY, DIMS, double *, double *);
 
+/* ..end declarations */
+
 void
 mv_fit(double *y, int *pdims, double *settings, double *center, double *Scatter,
     double *distances, double *weights, double *logLik, double *aCov, double *control)
@@ -86,7 +88,7 @@ mv_free(MV this)
 static int
 mv_iterate(MV model)
 {
-    int i, iter;
+    int i, iter = 0;
     double conv, tol = R_pow(model->tolerance, 2./3.), *lengths, RSS, newRSS;
 
     /* initialization */
@@ -96,8 +98,11 @@ mv_iterate(MV model)
     RSS = (double) model->dm->n * model->dm->p;
 
     /* main loop */
-    for (iter = 1; iter <= model->maxIter; iter++) {
+    repeat {
+        /* E-step */
         mv_Estep(model);
+        
+        /* CM-steps */
         update_center(model);
         update_Scatter(model);
         if (!(model->fixShape))
@@ -105,12 +110,16 @@ mv_iterate(MV model)
                            model->weights, tol);
         newRSS = dot_product(model->weights, 1, model->distances, 1, model->dm->n);
         
+        iter++;
+        
         /* eval convergence */
-        conv = fabs((newRSS - RSS) / (newRSS + ETA_CONV));
+        conv = fabs((newRSS - RSS) / (newRSS + ABSTOL));
         if (conv < model->tolerance) { /* successful completion */
             Free(lengths);
             return iter;
         }
+        if (iter >= model->maxIter)
+            break; /* maximum number of iterations exceeded */
         RSS = newRSS;
     }
     Free(lengths);

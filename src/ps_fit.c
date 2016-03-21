@@ -6,31 +6,15 @@
 static DIMS dims(int *);
 static void dims_free(DIMS);
 
-/* routines for estimation in linear models */
+/* routines for P-spline estimation */
 static SPLINE ps_init(double *, double *, double *, int *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *);
 static void ps_free(SPLINE);
 static int ps_iterate(SPLINE);
-static void ps_estimate(double *, double *, double *, DIMS, double *, double *, double *, double *, double *, double *, double *, double *, double *, double);
+static void ps_estimate(double *, double *, double *, DIMS, double *, double *, double *, double *, double *, double *, double *, double *, double *);
 static int combined_iterate(SPLINE);
 static void Mstep_and_WGCV(double *, double *, double *, DIMS, double *, double *, double *, double *, double *, double *, double *, double *, double *, double);
 static double log_WGCV(double, void *);
 static double plogLik(FAMILY, DIMS, double *, double *, double *, double *);
-
-void
-ps_fit(double *y, double *b, double *half, int *pdims, double *settings,
-    double *coef, double *scale, double *lambda, double *edf, double *gcv,
-    double *pen, double *fitted, double *residuals, double *distances,
-    double *weights, double *logLik, double *control)
-{   /* P-splines estimation */
-    SPLINE model;
-
-    model = ps_init(y, b, half, pdims, settings, coef, scale, lambda, edf, gcv,
-                    pen, fitted, residuals, distances, weights, control);
-    control[3] = ps_iterate(model);
-    *logLik = plogLik(model->family, model->dm, model->distances, model->scale,
-                      model->lambda, model->pen);
-    ps_free(model);
-}
 
 static DIMS
 dims(int *pdims)
@@ -84,6 +68,8 @@ ps_init(double *y, double *b, double *half, int *pdims, double *settings,
     model->maxIter = (int) control[0];
     model->tolerance = control[1];
     model->fixShape = (int) control[2];
+    model->ndraws = (int) control[3];
+    model->ncycles = (int) control[4];
     return model;
 }
 
@@ -95,19 +81,35 @@ ps_free(SPLINE this)
     Free(this);
 }
 
+void
+ps_fit(double *y, double *b, double *half, int *pdims, double *settings,
+    double *coef, double *scale, double *lambda, double *edf, double *gcv,
+    double *pen, double *fitted, double *residuals, double *distances,
+    double *weights, double *logLik, double *control)
+{   /* P-splines estimation */
+    SPLINE model;
+
+    model = ps_init(y, b, half, pdims, settings, coef, scale, lambda, edf, gcv,
+                    pen, fitted, residuals, distances, weights, control);
+    control[5] = ps_iterate(model);
+    *logLik = plogLik(model->family, model->dm, model->distances, model->scale,
+                      model->lambda, model->pen);
+    ps_free(model);
+}
+
 static int
 ps_iterate(SPLINE model)
 {   /* iteratively weighted P-splines estimation */
     DIMS dm = model->dm;
     int i, iter = 0;
-    double conv, logLik, newlogLik, *lengths, *scale;
+    double conv, *lengths, logLik, newlogLik, *scale;
 
     /* initialization */
     lengths = (double *) Calloc(dm->n, double);
     for (i = 0; i < dm->n; i++)
-        lengths[i] = 1.;
-    logLik = plogLik(model->family, model->dm, model->distances, model->scale,
-                     model->lambda, model->pen);
+        lengths[i] = 1.0;
+    logLik = plogLik(model->family, model->dm, model->distances, model->scale, model->lambda,
+                     model->pen);
     
     /* main loop */
     repeat {
@@ -115,14 +117,13 @@ ps_iterate(SPLINE model)
         scale = model->scale;
         for (i = 0; i < dm->n; i++) {
             (model->distances)[i] = SQR((model->resid)[i]) / *scale;
-            (model->weights)[i] = do_weight(model->family, 1., (model->distances)[i]);
+            (model->weights)[i] = do_weight(model->family, 1.0, (model->distances)[i]);
         }
         
         /* M-step */
         ps_estimate(model->y, model->b, model->half, model->dm, model->weights,
                     model->coef, model->scale, model->lambda, model->GCV,
-                    model->edf, model->pen, model->fitted, model->resid,
-                    model->tolerance);
+                    model->edf, model->pen, model->fitted, model->resid);
         if (!model->fixShape) {
             update_mixture(model->family, model->dm, model->distances, lengths,
                            model->weights, model->tolerance);
@@ -133,24 +134,25 @@ ps_iterate(SPLINE model)
         iter++;
 
         /* eval convergence */
-        conv = fabs((newlogLik - logLik) / (newlogLik + ETA_CONV));
+        conv = fabs((newlogLik - logLik) / (newlogLik + ABSTOL));
         if (conv < model->tolerance)
             break; /* successful completion */
         if (iter >= model->maxIter)
             break; /* maximum number of iterations exceeded */
         logLik = newlogLik;
     }
+    Free(lengths);
     return iter;
 }
 
 static void
 ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
     double *coef, double *scale, double *lambda, double *gcv, double *edf,
-    double *pen, double *fitted, double *resid, double tol)
+    double *pen, double *fitted, double *resid)
 {   /* weighted P-splines estimation */
     int i, j, qrows = dm->p - dm->ord, job, info = 0;
     double *a, *dummy = NULL, *u, *d, *v, *q, *r, *s, *rhs, *z, wts;
-    double div, df = 0.0, PEN = 0.0, RSS, GCV;
+    double df = 0.0, div, GCV, PEN = 0.0, RSS, term;
 
     a    = (double *) Calloc(dm->p, double);
     u    = (double *) Calloc(dm->n * dm->p, double);
@@ -197,9 +199,10 @@ ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
     
     /* compute the coefficients and degrees of freedom */
     for (j = 0; j < dm->p; j++) {
-        div = 1.0 + *lambda * SQR(r[j]);
-        df += 1.0 / div;
-        PEN += rhs[j] * r[j] / div;
+        div  = 1.0 + *lambda * SQR(r[j]);
+        df  += 1.0 / div;
+        term = rhs[j] * r[j] / div;
+        PEN += SQR(term);
         a[j] = rhs[j] / div;
     }
     mult_mat(s, dm->p, dm->p, dm->p, a, dm->p, dm->p, 1, a);
@@ -209,7 +212,7 @@ ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
     for (i = 0; i < dm->n; i++) 
         resid[i] = z[i] - fitted[i];
     
-    /* compute GCV criteria */
+    /* compute GCV criterion */
     RSS  = norm_sqr(resid, dm->n, 1);
     GCV  = RSS / dm->n;
     GCV /= SQR(1.0 - df / dm->n);
@@ -223,13 +226,13 @@ ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
         resid[i] /= wts;
         fitted[i] /= wts;
     }
-    *scale = (RSS + *lambda * PEN) / dm->n;
+
     *edf = df;
     *gcv = log(GCV);
     *pen = PEN;
-
-    Free(u); Free(d); Free(v); Free(q); Free(r); Free(s);
-    Free(a); Free(rhs); Free(z);
+    *scale = (RSS + *lambda * PEN) / dm->n;
+    
+    Free(a); Free(u); Free(d); Free(v); Free(q); Free(r); Free(s); Free(rhs); Free(z);
 }
 
 void
@@ -242,7 +245,7 @@ ps_combined(double *y, double *b, double *half, int *pdims, double *settings,
 
     model = ps_init(y, b, half, pdims, settings, coef, scale, lambda, edf, gcv,
                     pen, fitted, residuals, distances, weights, control);
-    control[3] = combined_iterate(model);
+    control[5] = combined_iterate(model);
     *logLik = plogLik(model->family, model->dm, model->distances, model->scale,
                      model->lambda, model->pen);
     ps_free(model);
@@ -253,12 +256,12 @@ combined_iterate(SPLINE model)
 {   /* iteratively weighted P-splines estimation */
     DIMS dm = model->dm;
     int i, iter = 0;
-    double conv, logLik, newlogLik, *lengths, *scale;
+    double conv, *lengths, logLik, newlogLik, *scale;
 
     /* initialization */
     lengths = (double *) Calloc(dm->n, double);
     for (i = 0; i < dm->n; i++)
-        lengths[i] = 1.;
+        lengths[i] = 1.0;
     logLik = plogLik(model->family, model->dm, model->distances, model->scale,
                      model->lambda, model->pen);
     
@@ -268,7 +271,7 @@ combined_iterate(SPLINE model)
         scale = model->scale;
         for (i = 0; i < dm->n; i++) {
             (model->distances)[i] = SQR((model->resid)[i]) / *scale;
-            (model->weights)[i] = do_weight(model->family, 1., (model->distances)[i]);
+            (model->weights)[i] = do_weight(model->family, 1.0, (model->distances)[i]);
         }
         
         /* combined M-step and WGCV search */
@@ -286,7 +289,7 @@ combined_iterate(SPLINE model)
         iter++;
 
         /* eval convergence */
-        conv = fabs((newlogLik - logLik) / (newlogLik + ETA_CONV));
+        conv = fabs((newlogLik - logLik) / (newlogLik + ABSTOL));
         if (conv < model->tolerance)
             break; /* successful completion */
         if (iter >= model->maxIter)
@@ -364,7 +367,6 @@ Mstep_and_WGCV(double *y, double *b, double *half, DIMS dm, double *weights,
     pars->resid  = resid;
     
     /* call optimizer */
-    
     upper_lambda = *lambda;
     do {
         *lambda = brent(0., upper_lambda, log_WGCV, pars, tol);
@@ -381,13 +383,14 @@ Mstep_and_WGCV(double *y, double *b, double *half, DIMS dm, double *weights,
         resid[i] /= wts;
         fitted[i] /= wts;
     }
-    *scale = (pars->RSS + *lambda * pars->pen) / dm->n;
+    
     *edf = pars->edf;
-    *pen = pars->pen;
     *gcv = pars->WGCV;
+    *pen = pars->pen;
+    *scale = (pars->RSS + *lambda * pars->pen) / dm->n;
 
-    Free(a); Free(u); Free(d); Free(v); Free(q); Free(r);
-    Free(s); Free(rhs); Free(z); Free(pars);
+    Free(a); Free(u); Free(d); Free(v); Free(q); Free(r); Free(s);
+    Free(rhs); Free(z); Free(pars);
 }
 
 double 
@@ -396,13 +399,14 @@ log_WGCV(double lambda, void *pars)
     GCVpars st = (GCVpars) pars;
     DIMS dm = st->dm;
     int i, j;
-    double edf = 0.0, div, PEN = 0.0, val, s2;
+    double div, edf = 0.0, PEN = 0.0, s2, term, val;
     
     /* compute the coefficients and degrees of freedom */
     for (j = 0; j < dm->p; j++) {
-        div = 1.0 + lambda * SQR((st->r)[j]);
+        div  = 1.0 + lambda * SQR((st->r)[j]);
         edf += 1.0 / div;
-        PEN += (st->rhs)[j] * (st->r)[j] / div;
+        term = (st->rhs)[j] * (st->r)[j] / div;
+        PEN += SQR(term);
         (st->a)[j] = (st->rhs)[j] / div;
     }
     mult_mat(st->s, dm->p, dm->p, dm->p, st->a, dm->p, dm->p, 1, st->a);

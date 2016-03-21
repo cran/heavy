@@ -1,22 +1,12 @@
 heavyLme <-
-function(fixed,
-    random,
-    groups,
-    data = sys.frame(sys.parent()),
-    family = Student(df = 4),
-    subset,
-    na.action = na.fail,
+function(fixed, random, groups, data = sys.frame(sys.parent()),
+    family = Student(df = 4), subset, na.action = na.fail,
     control = heavy.control())
   UseMethod("heavyLme")
 
 heavyLme.formula <-
-function(fixed,
-    random,
-    groups,
-    data = sys.frame(sys.parent()),
-    family = Student(df = 4),
-    subset,
-    na.action = na.fail,
+function(fixed, random, groups, data = sys.frame(sys.parent()),
+    family = Student(df = 4), subset, na.action = na.fail,
     control = heavy.control())
 {
   ## local functions
@@ -127,6 +117,8 @@ function(fixed,
   ## set control values 
   if (missing(control))
     control <- heavy.control(algorithm = "NEM")
+  if (!control$algorithm)
+    control$ncycles <- 1
   ctrl <- unlist(control)
   ctrl <- c(ctrl, 0)
 

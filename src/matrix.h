@@ -7,7 +7,7 @@
 extern double sum_abs(double *, int, int);
 extern double norm_sqr(double *, int, int);
 extern double dot_product(double *, int, double *, int, int);
-extern void scale(double *, int, int, double);
+extern void scale_vec(double *, int, int, double);
 extern void zero_mat(double *, int, int, int);
 extern void copy_mat(double *, int, double *, int, int, int);
 extern void add_mat(double *, int, double, double *, int, int, int);

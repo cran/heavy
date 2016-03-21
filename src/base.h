@@ -4,18 +4,21 @@
 #include <R.h>
 #include <Rmath.h>
 #include <Rinternals.h>
+#include <R_ext/Print.h>
 #include <R_ext/BLAS.h>
 #include <R_ext/Lapack.h>
 #include <R_ext/Linpack.h>
 #include <R_ext/Applic.h>
 
 /* some definitions */
-#define NULLP    (void *) 0
+#define DNULLP   (double *) 0
 #define MAX(a,b) (((a)>(b)) ? (a) : (b))
 #define MIN(a,b) (((a)<(b)) ? (a) : (b))
 #define SQR(x)   R_pow_di(x, 2)
-#define ETA_CONV 1.0e-2
-#define repeat for(;;)
+#define ABSTOL   1.0e-2
+#define REPORT   5
+#define GOLDEN   0.3819660112501051
+#define repeat   for(;;)
 
 /* dims structure */
 typedef struct DIMS_struct {
@@ -26,6 +29,7 @@ typedef struct DIMS_struct {
       n,        /* number of groups (Subjects) */
       p,        /* number of fixed effects */
       q,        /* number of random effects */
+      ny,       /* number of responses variables */
       deg,      /* degree of the B-spline */
       ord,      /* order of penalty */
       DcRows;   /* number of rows into decomposition */

@@ -30,7 +30,7 @@ dot_product(double *x, int incx, double *y, int incy, int n)
 }
 
 void
-scale(double *x, int n, int inc, double alpha)
+scale_vec(double *x, int n, int inc, double alpha)
 {   /* x <- alpha * x */
 
     F77_CALL(dscal)(&n, &alpha, x, &inc);
@@ -71,6 +71,18 @@ add_mat(double *y, int ldy, double alpha, double *x, int ldx, int nrow, int ncol
 }
 
 void
+scale_mat(double *y, int ldy, double *x, int ldx, int nrow, int ncol, double alpha)
+{   /* y <- alpha * x[,] */
+    int i, j;
+
+    for (j = 0; j < ncol; j++) {
+        for (i = 0; i < nrow; i++)
+            y[i] = alpha * x[i];
+        y += ldy; x += ldx;
+    }
+}
+
+void
 gaxpy(double *y, double alpha, double *a, int lda, int nrow, int ncol,
     double *x, double beta, int job)
 {   /* y <- alpha * a %*% x + beta * y or y <- alpha * t(a) %*% x + beta * y */
@@ -99,18 +111,6 @@ upper_tri(double *y, int ldy, double *x, int ldx, int nrow, int ncol)
     for (j = 0; j < ncol; j++) {
         rows = MIN(j + 1, nrow);
         Memcpy(y + j * ldy, x + j * ldx, rows);
-    }
-}
-
-void
-scale_mat(double *y, int ldy, double *x, int ldx, int nrow, int ncol, double alpha)
-{   /* y <- alpha * x[,] */
-    int i, j;
-
-    for (j = 0; j < ncol; j++) {
-        for (i = 0; i < nrow; i++)
-            y[i] = alpha * x[i];
-        y += ldy; x += ldx;
     }
 }
 

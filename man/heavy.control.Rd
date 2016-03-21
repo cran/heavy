@@ -6,17 +6,17 @@
   Allows users to set control parameters for routines available in \code{heavy}.
 }
 \usage{
-heavy.control(maxIter = 4000, tolerance = 1e-6, fix.shape = FALSE,
-  ndraws = 8000, algorithm = c("EM", "NEM"), ncycles = 5)
+heavy.control(maxIter = 500, tolerance = 1e-6, fix.shape = FALSE,
+  ndraws = 500, algorithm = c("EM", "NEM"), ncycles = 5)
 }
 
 \arguments{
-  \item{maxIter}{  maximum number of iterations. The default is 4000.}
+  \item{maxIter}{  maximum number of iterations. The default is 500.}
   \item{tolerance}{  the relative tolerance in the iterative algorithm.}
   \item{fix.shape}{  whether the shape parameters should be kept fixed in the fitting
   processes. The default is \code{fix.shape = FALSE}. Currently, only is available for
   the Student-t and slash distributions.}
-  \item{ndraws}{  independent draws for Monte Carlo integration. The default is 8000.}
+  \item{ndraws}{  independent draws for Monte Carlo integration. The default is 500.}
   \item{algorithm}{  character string specifying the algorithm to use. The default 
   algorithm is an EM algorithm. Other possible value is "NEM" for the nested EM algorithm.}
   \item{ncycles}{  number of cycles used in the nested EM algorithm, not used if \code{algorithm="EM"}. 

@@ -21,7 +21,7 @@ typedef struct SPLINE_struct {
       *scale,       /* scale estimate */
       *lambda,      /* smoothing parameter */
       *edf,         /* effective degrees of freedom */
-      *GCV,         /* Generalized Cross-Validation */
+      *GCV,         /* weighted Generalized Cross-Validation */
       *pen,         /* roughness penalty */
       *logLik,      /* penalized log-likelihood */
       *fitted,      /* fitted values */
@@ -31,7 +31,9 @@ typedef struct SPLINE_struct {
       *control;     /* control settings for the estimation algorithm */
     int
       maxIter,      /* maximun number of iterations */
-      fixShape;     /* must estimate shape parameters? */
+      fixShape,     /* must estimate shape parameters? */
+      ndraws,       /* independent draws for Monte Carlo integration */
+      ncycles;      /* number of cycles for the nested EM algorithm */
     double
       tolerance;    /* convergence tolerance */
 } SPLINE_struct, *SPLINE;

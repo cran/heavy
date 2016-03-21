@@ -51,6 +51,8 @@ function(x, data, family = Student(df = 4), subset, na.action, control = heavy.c
   ## set control values
   if (missing(control))
     control <- heavy.control()
+  if (!control$algorithm)
+    control$ncycles <- 1
   ctrl <- unlist(control)[1:4]
   ctrl <- c(ctrl, 0)
 

@@ -9,6 +9,12 @@ static double weight_student(double, double, double);
 static double weight_slash(double, double, double);
 static double weight_contaminated(double, double, double, double);
 
+/* function for random number generation from the distribution of the 'weights' */
+static double rand_weight_normal();
+static double rand_weight_cauchy(double, double);
+static double rand_weight_student(double, double, double);
+static double rand_weight_slash(double, double, double);
+
 /* functions for update the parameters of mixture variables */
 static double negQfnc_student(double, void *);
 static void update_df_student(DIMS, double *, double *, double *, double);
@@ -28,6 +34,8 @@ static double acov_scale_cauchy(double);
 static double acov_scale_student(double, double);
 static double acov_scale_slash(double, double, int);
 static double acov_scale_contaminated(double, double, double, int);
+
+/* ..end declarations */
 
 /* functions for dealing with 'family' objects */
 
@@ -128,6 +136,71 @@ do_weight(FAMILY family, double length, double distance)
             break;
         default:
             wts = weight_normal();
+            break;
+    }
+    return wts;
+}
+
+static double
+rand_weight_normal()
+{   /* Normal: 'generation'? from the weights distribution (NOT to be used) */
+    return 1.;
+}
+
+static double
+rand_weight_cauchy(double length, double distance)
+{   /* Cauchy: generation from the weights distribution */
+    double val;
+
+    val = rgamma(.5 * (1. + length), 2. / (1. + distance));
+    return val;
+}
+
+static double
+rand_weight_student(double length, double df, double distance)
+{   /* Student-t: generation from the weights distribution */
+    double val;
+
+    val = rgamma(.5 * (df + length), 2. / (df + distance));
+    return val;
+}
+
+static double
+rand_weight_slash(double length, double df, double distance)
+{   /* slash: generation from the weights distribution */
+    double val;
+
+    val = rtgamma_right_standard(df + .5 * length, .5 * distance);
+    return val;
+}
+
+double
+rand_weight(FAMILY family, double length, double distance)
+{   /* weights dispatcher */
+    double df, epsilon, vif, wts;
+
+    switch (family->kind) {
+        case NORMAL:
+            wts = rand_weight_normal();
+            break;
+        case CAUCHY:
+            wts = rand_weight_cauchy(length, distance);
+            break;
+        case STUDENT:
+            df = (family->nu)[0];
+            wts = rand_weight_student(length, df, distance);
+            break;
+        case SLASH:
+            df = (family->nu)[0];
+            wts = rand_weight_slash(length, df, distance);
+            break;
+        case CONTAMINATED:
+            epsilon = (family->nu)[0];
+            vif = (family->nu)[1];
+            wts = rand_weight_normal();
+            break;
+        default:
+            wts = rand_weight_normal();
             break;
     }
     return wts;
@@ -438,4 +511,3 @@ acov_scale(FAMILY family, double length, int ndraws)
     }
     return ans;
 }
-

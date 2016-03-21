@@ -1,21 +1,34 @@
-useDynLib(heavy)
+useDynLib(heavy, .registration = TRUE)
 
-export(Cauchy, contaminated, heavy.control, heavy.family, heavyFit, heavyLm, heavyLme,
-       heavyLme.formula, heavyPS, normal, rmCauchy, rmcnorm, rmnorm, rmslash, rmt,
+## base packages
+importFrom("stats",
+           .getXlevels, asOneSidedFormula, complete.cases, cov2cor, lsfit,
+           model.frame, model.matrix, model.response, na.fail, na.omit, pnorm,
+           quantile, terms, var)
+
+## Our Exports:
+export(Cauchy, contaminated, heavy.control, heavy.family, heavyFit, heavyLm,
+       heavyLme, heavyPS, normal, rmCauchy, rmcnorm, rmnorm, rmslash, rmt,
        rsphere, slash, Student)
 
-## register S3 methods
+# Exported S3 methods
+export(heavyLme.formula)
 
+## Register S3 methods
+S3method(heavyLme, formula)
 S3method(print, heavy.family)
 S3method(print, heavyFit)
-S3method(summary, heavyFit)
-S3method(print, summary.heavyFit)
 S3method(print, heavyLm)
-S3method(summary, heavyLm)
-S3method(print, summary.heavyLm)
 S3method(print, heavyLme)
-S3method(summary, heavyLme)
-S3method(print, summary.heavyLme)
+S3method(print, heavyMLM)
 S3method(print, heavyPS)
-S3method(summary, heavyPS)
+S3method(print, summary.heavyFit)
+S3method(print, summary.heavyLm)
+S3method(print, summary.heavyLme)
+S3method(print, summary.heavyMLM)
 S3method(print, summary.heavyPS)
+S3method(summary, heavyFit)
+S3method(summary, heavyLm)
+S3method(summary, heavyLme)
+S3method(summary, heavyMLM)
+S3method(summary, heavyPS)

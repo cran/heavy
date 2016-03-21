@@ -41,7 +41,7 @@ heavyFit(x, data, family = Student(df = 4), subset, na.action, control)
   A curious likelihood identity for the multivariate t-distribution.
   \emph{Communications in Statistics - Simulation and Computation} \bold{23}, 441-453.
   
-  Lange, K., Little, R.J.A., Taylor, J.M.G. (1989).
+  Lange, K., Little, R.J.A., and Taylor, J.M.G. (1989).
   Robust statistical modeling using the t distribution.
   \emph{Journal of the American Statistical Association} \bold{84}, 881-896.
   

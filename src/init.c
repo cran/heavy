@@ -10,6 +10,7 @@ static const R_CMethodDef CEntries[]  = {
     {"lme_fit",             (DL_FUNC) &lme_fit,             16},
     {"lme_fitted",          (DL_FUNC) &lme_fitted,          8},
     {"lme_acov",            (DL_FUNC) &lme_acov,            9},
+    {"mlm_fit",             (DL_FUNC) &mlm_fit,             13},
     {"mv_fit",              (DL_FUNC) &mv_fit,              10},
     {"ps_fit",              (DL_FUNC) &ps_fit,              17},
     {"ps_combined",         (DL_FUNC) &ps_combined,         17},
@@ -27,3 +28,4 @@ void R_init_heavy(DllInfo *dll)
     R_registerRoutines(dll, CEntries, NULL, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
+

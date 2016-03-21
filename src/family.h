@@ -35,6 +35,7 @@ extern void family_free(FAMILY);
 
 /* routines for computation of weights */
 extern double do_weight(FAMILY, double, double);
+extern double rand_weight(FAMILY, double, double);
 extern void update_mixture(FAMILY, DIMS, double *, double *, double *, double);
 
 /*  functions for evaluation of the log-likelihood */

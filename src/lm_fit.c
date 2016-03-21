@@ -16,6 +16,8 @@ static void IRLS_increment(double *, double *, DIMS, double *, double *, double 
 static double lm_logLik(FAMILY, DIMS, double *, double *);
 static void lm_acov(FAMILY, DIMS, double *, double *, int, double *);
 
+/* ..end declarations */
+
 void
 lm_fit(double *y, double *x, int *pdims, double *settings, double *coef,
     double *scale, double *fitted, double *resid, double *distances,
@@ -93,7 +95,7 @@ IRLS(double *y, double *x, DIMS dm, FAMILY family, double *coef, double *scale,
     double *resid, double *fitted, double *distances, double *weights, int maxit,
     double tolerance, int fixShape)
 {   /* iteratively reweighted LS algorithm */
-    int i, iter, rdf = dm->n - dm->p;
+    int i, iter = 0, rdf = dm->n - dm->p;
     double conv, RSS, tol = R_pow(tolerance, 2./3.), newRSS, *lengths, *working;
 
     /* initialization */
@@ -104,7 +106,7 @@ IRLS(double *y, double *x, DIMS dm, FAMILY family, double *coef, double *scale,
     RSS = norm_sqr(resid, dm->n, 1);
 
     /* main loop */
-    for (iter = 1; iter <= maxit; iter++) {
+    repeat {
         /* E-step */
         for (i = 0; i < dm->n; i++) {
             distances[i] = SQR(resid[i]) / *scale;
@@ -116,13 +118,17 @@ IRLS(double *y, double *x, DIMS dm, FAMILY family, double *coef, double *scale,
         *scale = newRSS / dm->n;
         if (!fixShape)
             update_mixture(family, dm, distances, lengths, weights, tol);
+        
+        iter++;
 
         /* eval convergence */
-        conv = fabs((newRSS - RSS) / (newRSS + ETA_CONV));
+        conv = fabs((newRSS - RSS) / (newRSS + ABSTOL));
         if (conv < tolerance) { /* successful completion */
             Free(lengths); Free(working);
             return iter; 
         }
+        if (iter >= maxit)
+            break; /* maximum number of iterations exceeded */
         RSS = newRSS;
     }
     Free(lengths); Free(working);
@@ -215,3 +221,4 @@ lm_acov(FAMILY family, DIMS dm, double *x, double *scale, int ndraws, double *ac
     scale_mat(acov, dm->p, acov, dm->p, dm->p, dm->p, factor);
     Free(R);
 }
+
