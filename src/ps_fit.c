@@ -108,8 +108,7 @@ ps_iterate(SPLINE model)
     lengths = (double *) Calloc(dm->n, double);
     for (i = 0; i < dm->n; i++)
         lengths[i] = 1.0;
-    logLik = plogLik(model->family, model->dm, model->distances, model->scale, model->lambda,
-                     model->pen);
+    logLik = plogLik(model->family, model->dm, model->distances, model->scale, model->lambda, model->pen);
     
     /* main loop */
     repeat {
@@ -179,10 +178,10 @@ ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
         error("routine DSVDC in ps_estimate gave code %d", info);
     
     /* compute the right-hand side */
-    crossprod(u, dm->n, dm->n, dm->p, z, dm->n, dm->n, 1, rhs);
+    crossprod(rhs, u, dm->n, dm->n, dm->p, z, dm->n, dm->n, 1);
     
     /* transform the half-penalty matrix */
-    mult_mat(half, qrows, qrows, dm->p, v, dm->p, dm->p, dm->p, q);
+    mult_mat(q, half, qrows, qrows, dm->p, v, dm->p, dm->p, dm->p);
     for (i = 0; i < qrows; i++) {
         for (j = 0; j < dm->p; j++)
             q[i + j * qrows] = q[i + j * qrows] / d[j];
@@ -195,7 +194,7 @@ ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
         error("routine DSVDC in ps_estimate gave code %d", info);
     
     /* update the right-hand side */
-    crossprod(s, dm->p, dm->p, dm->p, rhs, dm->p, dm->p, 1, rhs);
+    crossprod(rhs, s, dm->p, dm->p, dm->p, rhs, dm->p, dm->p, 1);
     
     /* compute the coefficients and degrees of freedom */
     for (j = 0; j < dm->p; j++) {
@@ -205,22 +204,22 @@ ps_estimate(double *y, double *b, double *half, DIMS dm, double *weights,
         PEN += SQR(term);
         a[j] = rhs[j] / div;
     }
-    mult_mat(s, dm->p, dm->p, dm->p, a, dm->p, dm->p, 1, a);
+    mult_mat(a, s, dm->p, dm->p, dm->p, a, dm->p, dm->p, 1);
 
     /* compute weighted fitted values and residuals */
-    mult_mat(u, dm->n, dm->n, dm->p, a, dm->p, dm->p, 1, fitted);
+    mult_mat(fitted, u, dm->n, dm->n, dm->p, a, dm->p, dm->p, 1);
     for (i = 0; i < dm->n; i++) 
         resid[i] = z[i] - fitted[i];
     
     /* compute GCV criterion */
-    RSS  = norm_sqr(resid, dm->n, 1);
+    RSS  = norm_sqr(resid, 1, dm->n);
     GCV  = RSS / dm->n;
     GCV /= SQR(1.0 - df / dm->n);
 
     /* compute coefficients, unweighted fitted values and residuals */
     for (j = 0; j < dm->p; j++)
         coef[j] = a[j] / d[j];
-    mult_mat(v, dm->p, dm->p, dm->p, coef, dm->p, dm->p, 1, coef);
+    mult_mat(coef, v, dm->p, dm->p, dm->p, coef, dm->p, dm->p, 1);
     for (i = 0; i < dm->n; i++) {
         wts = sqrt(weights[i]);
         resid[i] /= wts;
@@ -337,10 +336,10 @@ Mstep_and_WGCV(double *y, double *b, double *half, DIMS dm, double *weights,
         error("routine DSVDC in Mstep_and_WGCV gave code %d", info);
     
     /* compute the right-hand side */
-    crossprod(u, dm->n, dm->n, dm->p, z, dm->n, dm->n, 1, rhs);
+    crossprod(rhs, u, dm->n, dm->n, dm->p, z, dm->n, dm->n, 1);
     
     /* transform the half-penalty matrix */
-    mult_mat(half, qrows, qrows, dm->p, v, dm->p, dm->p, dm->p, q);
+    mult_mat(q, half, qrows, qrows, dm->p, v, dm->p, dm->p, dm->p);
     for (i = 0; i < qrows; i++) {
         for (j = 0; j < dm->p; j++)
             q[i + j * qrows] = q[i + j * qrows] / d[j];
@@ -353,7 +352,7 @@ Mstep_and_WGCV(double *y, double *b, double *half, DIMS dm, double *weights,
         error("routine DSVDC in Mstep_and_WGCV gave code %d", info);
     
     /* update the right-hand side */
-    crossprod(s, dm->p, dm->p, dm->p, rhs, dm->p, dm->p, 1, rhs);
+    crossprod(rhs, s, dm->p, dm->p, dm->p, rhs, dm->p, dm->p, 1);
     
     /* constructs a GCV object */
     pars->dm = dm;
@@ -377,7 +376,7 @@ Mstep_and_WGCV(double *y, double *b, double *half, DIMS dm, double *weights,
     /* compute coefficients, unweighted fitted values and residuals */
     for (j = 0; j < dm->p; j++)
         coef[j] = a[j] / d[j];
-    mult_mat(v, dm->p, dm->p, dm->p, coef, dm->p, dm->p, 1, coef);
+    mult_mat(coef, v, dm->p, dm->p, dm->p, coef, dm->p, dm->p, 1);
     for (i = 0; i < dm->n; i++) {
         wts = sqrt(weights[i]);
         resid[i] /= wts;
@@ -409,15 +408,15 @@ log_WGCV(double lambda, void *pars)
         PEN += SQR(term);
         (st->a)[j] = (st->rhs)[j] / div;
     }
-    mult_mat(st->s, dm->p, dm->p, dm->p, st->a, dm->p, dm->p, 1, st->a);
+    mult_mat(st->a, st->s, dm->p, dm->p, dm->p, st->a, dm->p, dm->p, 1);
 
     /* compute weighted fitted values and residuals */
-    mult_mat(st->u, dm->n, dm->n, dm->p, st->a, dm->p, dm->p, 1, st->fitted);
+    mult_mat(st->fitted, st->u, dm->n, dm->n, dm->p, st->a, dm->p, dm->p, 1);
     for (i = 0; i < dm->n; i++) 
         (st->resid)[i] = (st->z)[i] - (st->fitted)[i];
     
     /* compute log-WGCV criteria */
-    st->RSS = norm_sqr(st->resid, dm->n, 1);
+    st->RSS = norm_sqr(st->resid, 1, dm->n);
     s2 = st->RSS / (dm->n - edf);
     val = log(s2) - log(1.0 - edf / dm->n);
     st->edf = edf;

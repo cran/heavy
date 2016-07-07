@@ -1,27 +1,27 @@
 #include "family.h"
 
-/* declaration of static functions */
+/* static functions.. */
 
-/* functions for computation of weights */
+/* computation of 'robust' weights */
 static double weight_normal();
 static double weight_cauchy(double, double);
 static double weight_student(double, double, double);
 static double weight_slash(double, double, double);
 static double weight_contaminated(double, double, double, double);
 
-/* function for random number generation from the distribution of the 'weights' */
+/* random number generation from the distribution of the 'weights' */
 static double rand_weight_normal();
 static double rand_weight_cauchy(double, double);
 static double rand_weight_student(double, double, double);
 static double rand_weight_slash(double, double, double);
 
-/* functions for update the parameters of mixture variables */
+/* parameter estimation of mixture variables */
 static double negQfnc_student(double, void *);
 static void update_df_student(DIMS, double *, double *, double *, double);
 static double logwts_slash(double, double, double);
 static void update_df_slash(DIMS, double *, double *, double *);
 
-/*  functions for evaluation of the log-likelihood */
+/*  evaluation of the log-likelihood */
 static double logLik_normal(DIMS, double *);
 static double logLik_cauchy(DIMS, double *, double *);
 static double logLik_student(DIMS, double *, double, double *);
@@ -177,7 +177,7 @@ rand_weight_slash(double length, double df, double distance)
 double
 rand_weight(FAMILY family, double length, double distance)
 {   /* weights dispatcher */
-    double df, epsilon, vif, wts;
+    double df, wts;
 
     switch (family->kind) {
         case NORMAL:
@@ -195,8 +195,6 @@ rand_weight(FAMILY family, double length, double distance)
             wts = rand_weight_slash(length, df, distance);
             break;
         case CONTAMINATED:
-            epsilon = (family->nu)[0];
-            vif = (family->nu)[1];
             wts = rand_weight_normal();
             break;
         default:
@@ -440,7 +438,7 @@ static double
 acov_scale_slash(double length, double df, int ndraws)
 {   /* slash scale */
     int i;
-    double accum = 0., acov, u, w, *z;
+    double accum = 0., u, w, *z;
 
     if (df > 30.)
         return 1.;
@@ -448,7 +446,7 @@ acov_scale_slash(double length, double df, int ndraws)
     GetRNGstate();
     for (i = 0; i < ndraws; i++) {
         rand_spherical_slash(z, df, 1, length);
-        u = norm_sqr(z, length, 1);
+        u = norm_sqr(z, 1, length);
         w = weight_slash(length, df, u);
         accum += SQR(w) * u;
     }
@@ -463,13 +461,13 @@ static double
 acov_scale_contaminated(double length, double epsilon, double vif, int ndraws)
 {   /* contaminated normal scale */
     int i;
-    double accum = 0., acov, u, w, *z;
+    double accum = 0., u, w, *z;
 
     z = (double *) Calloc(length, double);
     GetRNGstate();
     for (i = 0; i < ndraws; i++) {
         rand_spherical_contaminated(z, epsilon, vif, 1, length);
-        u = norm_sqr(z, length, 1);
+        u = norm_sqr(z, 1, length);
         w = weight_contaminated(length, epsilon, vif, u);
         accum += SQR(w) * u;
     }

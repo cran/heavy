@@ -81,6 +81,8 @@ function(fixed, random, groups, data = sys.frame(sys.parent()),
   q <- ncol(Z)
   ZXcols <- p + q
   qsq <- q^2
+  if (min(glen) < ncol(Z))
+    stop("some subjects with insuficient observations, unable to carry out the parameter estimation.")
   ## generating parameters used throughout the calculations
   ZX <- array(c(Z,X), c(ZXrows, ZXcols), list(rep("",N), c(Znames, Xnames)))
   qraux <- rep(0, n * ZXcols)

@@ -13,7 +13,7 @@ heavyPS(x, y, family = Student(df = 4), nseg = 20, deg = 3, ord = 2,
 \arguments{
   \item{x, y}{ vectors giving the coordinates of the points in the scatter plot.
   Missing values are deleted.}
-  \item{family}{ a description of the error distribution to be used in the model. 
+  \item{family}{ a description of the error distribution to be used in the model.
   By default the Student-t distribution with 4 degrees of freedom is considered.}
   \item{nseg}{ number of segments used to divide the domain, this information is
   required to construct the sequence of knots. Default value is 20.}
@@ -29,18 +29,18 @@ heavyPS(x, y, family = Student(df = 4), nseg = 20, deg = 3, ord = 2,
   automatically using the weighted generalized cross validation criterion.}
   \item{ngrid}{ number of elements in the grid used to compute the smoother.
   Only required to plot the fitted P-spline.}
-  \item{control}{ a list of control values for the estimation algorithm to replace 
+  \item{control}{ a list of control values for the estimation algorithm to replace
   the default values returned by the function \code{\link{heavy.control}}.}
 }
 
 \value{
-  an object of class \code{heavyPS} representing the fitted model. Generic 
+  an object of class \code{heavyPS} representing the fitted model. Generic
   functions \code{print} and \code{summary}, show the results of the fit.
-  
+
   The following components must be included in a legitimate \code{heavyPS} object.
   \item{call}{  a list containing an image of the \code{heavyPS} call that produced the object.}
   \item{design}{  a list containing the B-spline basis matrix, the triangular factor of the penalty matrix and a numeric vector of knot positions with non-decreasing values.}
-  \item{method}{  one of "EM", "GCV" or "none", depending on the fitting criterion used.}
+  \item{method}{  one of "GCV" or "none", depending on the fitting criterion used.}
   \item{family}{  the \code{\link{heavy.family}} object used in the fitting process.}
   \item{coefficients}{  final estimate of the coefficients vector.}
   \item{scale}{  final scale estimate of the random error.}
@@ -63,11 +63,10 @@ heavyPS(x, y, family = Student(df = 4), nseg = 20, deg = 3, ord = 2,
   Eilers, P.H.C., and Marx, B.D. (1996).
   Flexible smoothing using B-splines and penalties (with discussion).
   \emph{Statistical Science} \bold{11}, 89-121.
-  
+
   Osorio, F. (2016).
   Influence diagnostics for robust P-splines using scale mixture of normal distributions.
-  \emph{Annals of the Institute of Statistical Mathematics}.
-  DOI: \url{http://dx.doi.org/10.1007/s10463-015-0506-0}
+  \emph{Annals of the Institute of Statistical Mathematics} \bold{68}, 589-619.
 }
 
 \examples{

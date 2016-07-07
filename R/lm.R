@@ -1,150 +1,219 @@
 heavyLm <-
 function(formula, data, family = Student(df = 4), subset, na.action,
-    control = heavy.control(), model = TRUE, x = FALSE, y = FALSE,
-    contrasts = NULL)
+  control = heavy.control(), model = TRUE, x = FALSE, y = FALSE,
+  contrasts = NULL)
 {
-    ret.x <- x
-    ret.y <- y
-    Call <- match.call()
-    mf <- match.call(expand.dots = FALSE)
-    mf$family <- mf$control <- mf$model <- mf$x <- mf$y <- mf$contrasts <- NULL
-    mf$drop.unused.levels <- TRUE
-    mf[[1]] <- as.name("model.frame")
-    mf <- eval(mf, parent.frame())
-    Terms <- attr(mf, "terms")
-    y <- model.response(mf, "numeric")
-    is.multivariate <- is.matrix(y)
-    x <- model.matrix(Terms, mf, contrasts)
-    xnames <- dimnames(x)[[2]]
-    if (is.multivariate)
-      ynames <- dimnames(y)[[2]]
-    dx <- dim(x)
-    n <- dx[1]
-    p <- dx[2]
-    
-    ## initial estimates
-    fit <- lsfit(x, y, intercept = FALSE)[1:2]
-    res <- fit$residuals
-    cf <- fit$coefficients
-    if (is.multivariate)
-      Sigma <- crossprod(res) / n
-    else
-      sigma2 <- sum(res^2) / n
-    
-    ## extract family info
-    if (!inherits(family, "heavy.family"))
-      stop("Use only with 'heavy.family' objects")
-    if (is.null(family$family))
-      stop("'family' not recognized")
-    kind <- family$which
-    if ((kind < 0) || (kind > 4))
-      stop("not valid 'family' object")
-    settings <- c(kind, family$npars, unlist(family$pars))
-    
-    ## set control values
-    if (missing(control))
-      control <- heavy.control()
-    if (!control$algorithm)
-      control$ncycles <- 1
-    ctrl <- unlist(control)[1:4]
-    ctrl <- c(ctrl, 0)
-    
-    ## Call fitter
-    now <- proc.time()
-    if (is.multivariate) {
-      ny <- ncol(y)
-      dx <- c(dx, ny)
-      #storage.mode(y) <- "double"
-      #storage.mode(x) <- "double"
-      #storage.mode(res) <- "double"
-      fit <- .C("mlm_fit",
-                y = as.double(y),
-                x = as.double(x),
-                dims = as.integer(dx),
-                settings = as.double(settings),
-                coefficients = as.double(cf),
-                Sigma = as.double(Sigma),
-                fitted = double(n * ny),
-                residuals = as.double(res),
-                distances = double(n),
-                weights = as.double(rep(1, n)),
-                logLik = double(1),
-                acov = double(p^2),
-                control = as.double(ctrl))
+  ret.x <- x
+  ret.y <- y
+  Call <- match.call()
+  mf <- match.call(expand.dots = FALSE)
+  mf$family <- mf$control <- mf$model <- mf$x <- mf$y <- mf$contrasts <- NULL
+  mf$drop.unused.levels <- TRUE
+  mf[[1]] <- as.name("model.frame")
+  mf <- eval(mf, parent.frame())
+  Terms <- attr(mf, "terms")
+  y <- model.response(mf, "numeric")
+  x <- model.matrix(Terms, mf, contrasts)
+  ny <- NCOL(y)
+  is.multivariate <- is.matrix(y) && (ny > 1)
+
+  ## call fitter
+  z <- if (is.multivariate) heavyMLm.fit(x, y, family, control)
+       else heavyLm.fit(x, y, family, control)
+
+  ## output
+  z$call <- Call
+  z$na.action <- attr(mf, "na.action")
+  z$contrasts <- attr(x, "contrasts")
+  z$xlevels <- .getXlevels(Terms, mf)
+  z$terms <- Terms
+  if (model)
+    z$model <- mf
+  if (ret.y)
+    z$y <- y
+  if (ret.x)
+    z$x <- x
+  class(z) <- if (is.multivariate) "heavyMLm" else "heavyLm"
+  z
+}
+
+heavyLm.fit <-
+function(x, y, family = Student(df = 4), control = heavy.control())
+{
+  ## validating arguments
+  if (is.null(n <- nrow(x)))
+    stop("'x' must be a matrix")
+  if (n == 0L)
+    stop("0 (non-NA) cases")
+  p <- ncol(x)
+  if (p == 0L)
+    stop("trying to fit a null model")
+  ny <- NCOL(y)
+  if (is.matrix(y) && ny == 1)
+    y <- drop(y)
+  if (NROW(y) != n)
+    stop("incompatible dimensions")
+  dx <- c(n,p)
+
+  ## extract family info
+  if (!inherits(family, "heavy.family"))
+    stop("Use only with 'heavy.family' objects")
+  if (is.null(family$family))
+    stop("'family' not recognized")
+  kind <- family$which
+  if ((kind < 0) || (kind > 4))
+    stop("not valid 'family' object")
+  settings <- c(kind, family$npars, unlist(family$pars))
+
+  ## initial estimates
+  fit <- lsfit(x, y, intercept = FALSE)[1:2]
+  resid <- fit$residuals
+  coef <- fit$coefficients
+  sigma2 <- sum(resid^2) / n
+
+  ## set control values
+  if (missing(control))
+    control <- heavy.control()
+  if (!control$algorithm)
+    control$ncycles <- 1
+  ctrl <- unlist(control)[1:4]
+  ctrl <- c(ctrl, 0)
+
+  ## call fitter
+  now <- proc.time()
+  fit <- .C("lm_fit",
+            y = as.double(y),
+            x = as.double(x),
+            dims = as.integer(dx),
+            settings = as.double(settings),
+            coefficients = as.double(coef),
+            sigma2 = as.double(sigma2),
+            fitted = double(n),
+            residuals = as.double(resid),
+            distances = double(n),
+            weights = as.double(rep(1, n)),
+            logLik = double(1),
+            acov = double(p^2),
+            control = as.double(ctrl))
+  speed <- proc.time() - now
+
+  coef <- fit$coefficients
+  acov <- matrix(fit$acov, ncol = p)
+  xnames <- colnames(x)
+  if (is.null(xnames))
+    xnames <- paste0("x", 1L:p)
+  names(coef) <- xnames
+  dimnames(acov) <- list(xnames, xnames)
+
+  ## creating the output object
+  out <- list(dims = dx, family = family, settings = fit$settings,
+              coefficients = coef, sigma2 = fit$sigma2, fitted.values = fit$fitted,
+              residuals = fit$residuals, weights = fit$weights, distances = fit$distances,
+              acov = acov, logLik = fit$logLik, numIter = fit$control[5],
+              control = control, speed = speed)
+  if (!control$fix.shape) {
+    if ((kind > 1) && (kind < 4)) {
+      df <- signif(out$settings[3], 6)
+      out$family$call <- call(out$family$family, df = df)
     }
-    else {
-      fit <- .C("lm_fit",
-                y = as.double(y),
-                x = as.double(x),
-                dims = as.integer(dx),
-                settings = as.double(settings),
-                coefficients = as.double(cf),
-                sigma2 = as.double(sigma2),
-                fitted = double(n),
-                residuals = as.double(res),
-                distances = double(n),
-                weights = as.double(rep(1, n)),
-                logLik = double(1),
-                acov = double(p^2),
-                control = as.double(ctrl))
+  }
+  if (out$numIter < control$maxIter)
+    out$converged <- TRUE
+  else
+    out$converged <- FALSE
+  out
+}
+
+heavyMLm.fit <-
+function(x, y, family = Student(df = 4), control = heavy.control())
+{
+  ## validating arguments
+  if (is.null(n <- nrow(x)))
+    stop("'x' must be a matrix")
+  if (n == 0L)
+    stop("0 (non-NA) cases")
+  p <- ncol(x)
+  if (p == 0L)
+    stop("trying to fit a null model")
+  ny <- NCOL(y)
+  if (NROW(y) != n)
+    stop("incompatible dimensions")
+  dx <- c(n,p,ny)
+
+  ## extract family info
+  if (!inherits(family, "heavy.family"))
+    stop("Use only with 'heavy.family' objects")
+  if (is.null(family$family))
+    stop("'family' not recognized")
+  kind <- family$which
+  if ((kind < 0) || (kind > 4))
+    stop("not valid 'family' object")
+  settings <- c(kind, family$npars, unlist(family$pars))
+
+  ## initial estimates
+  fit <- lsfit(x, y, intercept = FALSE)[1:2]
+  resid <- fit$residuals
+  coef <- fit$coefficients
+  Sigma <- crossprod(resid) / n
+
+  ## set control values
+  if (missing(control))
+    control <- heavy.control()
+  if (!control$algorithm)
+    control$ncycles <- 1
+  ctrl <- unlist(control)[1:4]
+  ctrl <- c(ctrl, 0)
+
+  ## call fitter
+  now <- proc.time()
+  fit <- .C("mlm_fit",
+            y = as.double(y),
+            x = as.double(x),
+            dims = as.integer(dx),
+            settings = as.double(settings),
+            coefficients = as.double(coef),
+            Sigma = as.double(Sigma),
+            fitted = double(n * ny),
+            residuals = as.double(resid),
+            distances = double(n),
+            weights = as.double(rep(1, n)),
+            logLik = double(1),
+            acov = double(p^2),
+            control = as.double(ctrl))
+  speed <- proc.time() - now
+
+  coef <- matrix(fit$coefficients, ncol = ny)
+  Sigma <- matrix(fit$Sigma, ncol = ny)
+  fitted <- matrix(fit$fitted, ncol = ny)
+  resid <- matrix(fit$resid, ncol = ny)
+  acov <- matrix(fit$acov, ncol = p)
+  xnames <- colnames(x)
+  if (is.null(xnames))
+    xnames <- paste0("x", 1L:p)
+  ynames <- colnames(y)
+  dimnames(coef) <- list(xnames, ynames)
+  dimnames(Sigma) <- list(ynames, ynames)
+  dimnames(acov) <- list(xnames, xnames)
+  colnames(fitted) <- ynames
+  colnames(resid) <- ynames
+
+  ## creating the output object
+  out <- list(dims = dx, family = family, settings = fit$settings,
+              coefficients = coef, Sigma = Sigma, fitted.values = fitted,
+              residuals = resid, weights = fit$weights, distances = fit$distances,
+              acov = kronecker(acov, Sigma), logLik = fit$logLik,
+              numIter = fit$control[5], control = control, speed = speed)
+  if (!control$fix.shape) {
+    if ((kind > 1) && (kind < 4)) {
+      df <- signif(out$settings[3], 6)
+      out$family$call <- call(out$family$family, df = df)
     }
-    speed <- proc.time() - now
-    
-    ## creating the output object
-    out <- list(call = Call,
-                dims = dx,
-                family = family,
-                settings = fit$settings)
-    if (is.multivariate) {
-      out$coefficients <- matrix(fit$coefficients, ncol = ny)
-      out$Sigma <- matrix(fit$Sigma, ncol = ny)
-      out$fitted.values <- matrix(fit$fitted, ncol = ny)
-      out$residuals <- matrix(fit$residuals, ncol = ny)
-    } else {
-      out$coefficients <- fit$coefficients
-      out$sigma2 <- fit$sigma2
-      out$fitted.values <- fit$fitted
-      out$residuals <- fit$residuals
-    }
-    out$logLik <- fit$logLik
-    out$numIter <- fit$control[5]
-    out$control <- control
-    out$weights <- fit$weights
-    out$distances <- fit$distances
-    out$acov <- matrix(fit$acov, ncol = p)
-    out$speed = speed
-    out$converged = FALSE
-    if (!control$fix.shape) {
-      if ((kind > 1) && (kind < 4)) {
-        df <- signif(out$settings[3], 6)
-        out$family$call <- call(out$family$family, df = df)
-      }
-    }
-    if (out$numIter < control$maxIter)
-      out$converged <- TRUE
-    if (is.multivariate) {
-      dimnames(out$coefficients)[[1]] <- xnames
-      dimnames(out$coefficients)[[2]] <- ynames
-      dimnames(out$Sigma)[[1]] <- ynames
-      dimnames(out$Sigma)[[2]] <- ynames
-      out$acov <- kronecker(out$acov, out$Sigma)
-    } else
-      names(out$coefficients) <- xnames
-    out$na.action <- attr(mf, "na.action")
-    out$contrasts <- attr(x, "contrasts")
-    out$xlevels <- .getXlevels(Terms, mf)
-    out$terms <- Terms
-    if (model)
-      out$model <- mf
-    if (ret.y)
-      out$y <- y
-    if (ret.x)
-      out$x <- x
-    if (is.multivariate)
-      class(out) <- "heavyMLM"
-    else
-      class(out) <- "heavyLm"
-    out
+  }
+  if (out$numIter < control$maxIter)
+    out$converged <- TRUE
+  else
+    out$converged <- FALSE
+  out
 }
 
 print.heavyLm <-
@@ -166,7 +235,7 @@ function(x, digits = 4, ...)
   invisible(x)
 }
 
-print.heavyMLM <-
+print.heavyMLm <-
 function(x, digits = 4, ...)
 {
   cat("Call:\n")
@@ -207,7 +276,7 @@ function (object, ...)
   ans
 }
 
-summary.heavyMLM <-
+summary.heavyMLm <-
 function (object, ...)
 {
   z <- object
@@ -220,7 +289,7 @@ function (object, ...)
   ans$residuals <- z$residuals
   ans$acov <- z$acov
   ans$correlation <- cov2cor(z$acov)
-  class(ans) <- "summary.heavyMLM"
+  class(ans) <- "summary.heavyMLm"
   ans
 }
 
@@ -252,7 +321,7 @@ function(x, digits = 4, ...)
   invisible(x)
 }
 
-print.summary.heavyMLM <-
+print.summary.heavyMLm <-
 function(x, digits = 4, ...)
 {
   ## local functions

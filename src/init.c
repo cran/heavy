@@ -1,8 +1,8 @@
 #include <R_ext/Rdynload.h>
 #include "lm_fit.h"
 #include "lme_fit.h"
-#include "ps_fit.h"
 #include "mv_fit.h"
+#include "ps_fit.h"
 #include "random.h"
 
 static const R_CMethodDef CEntries[]  = {
@@ -28,4 +28,3 @@ void R_init_heavy(DllInfo *dll)
     R_registerRoutines(dll, CEntries, NULL, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
-

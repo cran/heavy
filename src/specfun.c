@@ -1,11 +1,9 @@
 #include "specfun.h"
 
-/* declaration of static functions */
-
+/* static functions.. */
 static double pg_asymp(double, double);
 static double pg_continued_fraction(double, double);
 static double pg_series_expansion(double, double);
-
 /* ..end declarations */
 
 double
@@ -60,7 +58,7 @@ pg_continued_fraction(double x, double a)
     double lgam, psi, xlog;
     double i, b, g, p, s0, c1, c2, c3, c4, c5, c6, d1, d2, d3, d4, d5, d6;
     double f, f_dot, s, s_dot;
-    const static double eps = 1.e-06, max_it = 200000., scalefactor = 1.e+30;
+    const static double eps = 1.e-06, max_it = 10000., scalefactor = 1.e+30;
 
     /* set constants */
     xlog = log(x);
@@ -78,11 +76,14 @@ pg_continued_fraction(double x, double a)
     c2 = x;
     c3 = x + 1.;
     c4 = x * b;
+    c6 = 1.;
     s0 = c3 / c4;
     d1 = 0.;
     d2 = 0.;
     d3 = 0.;
     d4 = -x;
+    d5 = 0.;
+    d6 = 0.;
     i  = 0.;
 
     while (i < max_it) {

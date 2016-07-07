@@ -52,4 +52,10 @@ typedef struct QR_struct {
     int ldmat, nrow, ncol;
 } QR_struct, *QRStruct;
 
+/* LQ structure */
+typedef struct LQ_struct {
+    double *mat, *lqaux;
+    int ldmat, nrow, ncol;
+} LQ_struct, *LQStruct;
+
 #endif /* HEAVY_BASE_H */
