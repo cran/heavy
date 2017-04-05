@@ -7,10 +7,10 @@ importFrom("stats",
            quantile, terms, var)
 
 ## Our Exports:
-export(Cauchy, contaminated, normal, slash, Student,
-       heavy.control, heavy.family,
-       heavyFit, heavyLm, heavyLm.fit, heavyLme, heavyMLm.fit, heavyPS,
-       rmCauchy, rmcnorm, rmnorm, rmslash, rmt, rsphere)
+export(Cauchy, contaminated, dtgamma, normal, slash, Student, heavy.control,
+       heavy.family, heavyFit, heavyLm, heavyLm.fit, heavyLme, heavyMLm.fit,
+       heavyPS, ptgamma, qtgamma, rmCauchy, rmcnorm, rmnorm, rmslash, rmt,
+       rsphere, rtgamma)
 
 # Exported S3 methods
 export(heavyLme.formula)

@@ -22,40 +22,40 @@
 
 /* dims structure */
 typedef struct DIMS_struct {
-    int
-      N,        /* total number of observations */
-      ZXrows,   /* number of rows in ZX */
-      ZXcols,   /* number of columns in ZX */
-      n,        /* number of groups (Subjects) */
-      p,        /* number of fixed effects */
-      q,        /* number of random effects */
-      ny,       /* number of responses variables */
-      deg,      /* degree of the B-spline */
-      ord,      /* order of penalty */
-      DcRows;   /* number of rows into decomposition */
+  int
+    N,        /* total number of observations */
+    ZXrows,   /* number of rows in ZX */
+    ZXcols,   /* number of columns in ZX */
+    n,        /* number of groups (Subjects) */
+    p,        /* number of fixed effects */
+    q,        /* number of random effects */
+    ny,       /* number of responses variables */
+    deg,      /* degree of the B-spline */
+    ord,      /* order of penalty */
+    DcRows;   /* number of rows into decomposition */
 } DIMS_struct, *DIMS;
 
 /* lengths and offsets structure */
 typedef struct LENGTHS_struct {
-    int
-      *glen,    /* groups lengths */
-      *offsets, /* groups offsets */
-      *ZXlen,   /* lengths into ZX */
-      *ZXoff,   /* offsets into ZX */
-      *DcLen,   /* lengths into decomposition */
-      *DcOff;   /* offsets into decomposition */
+  int
+    *glen,    /* groups lengths */
+    *offsets, /* groups offsets */
+    *ZXlen,   /* lengths into ZX */
+    *ZXoff,   /* offsets into ZX */
+    *DcLen,   /* lengths into decomposition */
+    *DcOff;   /* offsets into decomposition */
 } LENGTHS_struct, *LENGTHS;
 
 /* QR structure */
 typedef struct QR_struct {
-    double *mat, *qraux;
-    int ldmat, nrow, ncol;
+  double *mat, *qraux;
+  int ldmat, nrow, ncol;
 } QR_struct, *QRStruct;
 
 /* LQ structure */
 typedef struct LQ_struct {
-    double *mat, *lqaux;
-    int ldmat, nrow, ncol;
+  double *mat, *lqaux;
+  int ldmat, nrow, ncol;
 } LQ_struct, *LQStruct;
 
 #endif /* HEAVY_BASE_H */

@@ -1,3 +1,7 @@
+0.381 (Apr 3, 2017)
+	* Added routines to evaluate density, cumulative distribution, quantile functions
+		and generation of random deviates from the right truncated gamma distribution
+
 0.38 (Jul 6, 2016)
 	* Fixed bug on the output of heavyLm in the case of multivariate responses
 		with only one regressor variable (thanks to Maria de los Angeles Villena

@@ -257,7 +257,7 @@ mlm_acov(FAMILY family, DIMS dm, double *x, int ndraws, double *acov)
   /* unscaled Fisher information matrix */
   qr = QR_decomp(x, dm->n, dm->n, dm->p, qraux, &info);
   if (info)
-    error("DGEQR2 in IRLS_increment gave code %d", info);
+    error("DGEQR2 in mlm_acov gave code %d", info);
   QR_store_R(qr, R, dm->p);
   invert_triangular(R, dm->p, dm->p, job, &info);
   if (info)

@@ -2,31 +2,32 @@
 #define HEAVY_FAMILY_H
 
 #include "base.h"
+#include "distn.h"
 #include "optim.h"
 #include "random.h"
 #include "specfun.h"
 
 /* available families */
 typedef enum {
-    NORMAL,
-    CAUCHY,
-    STUDENT,
-    SLASH,
-    CONTAMINATED
+  NORMAL,
+  CAUCHY,
+  STUDENT,
+  SLASH,
+  CONTAMINATED
 } classes;
 
 /* heavy tailed family structure */
 typedef struct FAMILY_struct {
-    classes kind;   /* family kind */
-    int npars;      /* number of parameters in 'family' */
-    double *nu;     /* parameter vector */
+  classes kind;   /* family kind */
+  int npars;      /* number of parameters in 'family' */
+  double *nu;     /* parameter vector */
 } FAMILY_struct, *FAMILY;
 
 /* Q-function info required for the degrees of freedom estimation */
 typedef struct QT_pars {
-    DIMS dm;
-    double df, Qfnc;
-    double *lengths, *weights;
+  DIMS dm;
+  double df, Qfnc;
+  double *lengths, *weights;
 } QT_pars, *QTpars;
 
 /* functions for dealing with 'family' objects */

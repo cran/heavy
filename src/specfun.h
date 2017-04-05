@@ -3,9 +3,6 @@
 
 #include "base.h"
 
-/* normal approximation of the incomplete gamma integral */
-extern double pgamma_asymp(double, double, double);
-
 /* derivative of the incomplete gamma integral */
 extern double pgamma_derivative(double, double, double);
 
