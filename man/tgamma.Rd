@@ -11,10 +11,10 @@
   parameters and right truncation point (\code{truncation}).
 }
 \usage{
-dtgamma(x, shape, scale = 1, truncation = 1, log = FALSE)
-ptgamma(q, shape, scale = 1, truncation = 1, lower.tail = TRUE)
-qtgamma(p, shape, scale = 1, truncation = 1, lower.tail = TRUE)
-rtgamma(n, shape, scale = 1, truncation = 1)
+  dtgamma(x, shape, scale = 1, truncation = 1, log = FALSE)
+  ptgamma(q, shape, scale = 1, truncation = 1, lower.tail = TRUE)
+  qtgamma(p, shape, scale = 1, truncation = 1, lower.tail = TRUE)
+  rtgamma(n, shape, scale = 1, truncation = 1)
 }
 \arguments{
   \item{x, q}{vector of quantiles.}

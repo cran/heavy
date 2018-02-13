@@ -263,7 +263,7 @@ logwts_slash(double length, double df, double distance)
 
   shape = df + .5 * length;
   wts   = digamma(shape) - log(distance / 2.);
-  incr  = pgamma_derivative(1., shape, distance / 2.);
+  incr  = pgamma_1st_derivative(1., shape, distance / 2.);
   incr /= pgamma(1., shape, 2. / distance, lower_tail, log_p);
   wts  += incr;
   return wts;

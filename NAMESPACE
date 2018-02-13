@@ -9,8 +9,8 @@ importFrom("stats",
 ## Our Exports:
 export(Cauchy, contaminated, dtgamma, normal, slash, Student, heavy.control,
        heavy.family, heavyFit, heavyLm, heavyLm.fit, heavyLme, heavyMLm.fit,
-       heavyPS, ptgamma, qtgamma, rmCauchy, rmcnorm, rmnorm, rmslash, rmt,
-       rsphere, rtgamma)
+       heavyPS, pgamma.deriv, ptgamma, qtgamma, rmCauchy, rmcnorm, rmnorm,
+       rmslash, rmt, rsphere, rtgamma)
 
 # Exported S3 methods
 export(heavyLme.formula)

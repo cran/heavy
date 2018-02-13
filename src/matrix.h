@@ -26,6 +26,9 @@ extern void rank1_update(double *, int, int, int, double, double *, double *);
 extern void rank1_symm_update(double *, int, int, double, double *, int);
 extern double logAbsDet(double *, int, int);
 
+/* DEBUG routine */
+extern void print_mat(char *, double *, int, int, int);
+
 /* routines for matrix decompositions (wrappers to LAPACK and Linpack) */
 extern void chol_decomp(double *, int, int, int, int *);
 extern void svd_decomp(double *, int, int, int, double *, int, double *, double *, int, int, int *);
@@ -40,6 +43,7 @@ extern void QR_qy(QRStruct, double *, int, int, int);
 extern void QR_store_R(QRStruct, double *, int);
 extern void LQ_yqt(LQStruct, double *, int, int, int);
 extern void LQ_yq(LQStruct, double *, int, int, int);
+extern void LQ_store_L(LQStruct, double *, int);
 
 /* matrix inversion and linear solver */
 extern void invert_mat(double *, int, int, int *);

@@ -12,8 +12,7 @@ static void mv_free(MV);
 static int mv_iterate(MV);
 static void mv_Estep(MV);
 static double mahalanobis(double *, int, double *, double *);
-static void update_center(MV);
-static void update_Scatter(MV);
+static void center_and_Scatter(MV);
 
 /* routines for evaluation of marginal log-likelihood and Fisher information matrix */
 static void mv_acov(FAMILY, DIMS, double *, int, double *);
@@ -102,8 +101,7 @@ mv_iterate(MV model)
     mv_Estep(model);
 
     /* CM-steps */
-    update_center(model);
-    update_Scatter(model);
+    center_and_Scatter(model);
     if (!(model->fixShape))
       update_mixture(model->family, model->dm, model->distances, lengths,
                      model->weights, tol);
@@ -160,40 +158,36 @@ mahalanobis(double *y, int p, double *center, double *Root)
 }
 
 static void
-update_center(MV model)
-{ /* compute the center estimate */
+center_and_Scatter(MV model)
+{ /* compute center and Scatter estimates using an online algorithm
+   * based on AS 41: Applied Statistics 20, 1971, pp. 206-209 */
   DIMS dm = model->dm;
-  double factor = 1., wts, *center;
+  double factor, wts, *center, *Scatter, *diff;
   int i;
+  double accum = 0.0;
 
-  center = (double *) Calloc(dm->p, double);
-  for (i = 0; i < dm->n; i++) {
-    wts = (model->weights)[i];
-    ax_plus_y(wts, model->y + i * dm->p, 1, center, 1, dm->p);
-  }
-  factor /= sum_abs(model->weights, 1, dm->n);
-  scale_vec(factor, center, 1, dm->p);
-  Memcpy(model->center, center, dm->p);
-  Free(center);
-}
-
-static void
-update_Scatter(MV model)
-{ /* update the scatter matrix estimate */
-  DIMS dm = model->dm;
-  double wts, *Scatter, *z;
-  int i;
-
+  diff    = (double *) Calloc(dm->p, double);
+  center  = (double *) Calloc(dm->p, double);
   Scatter = (double *) Calloc(SQR(dm->p), double);
-  z = (double *) Calloc(dm->p, double);
-  for (i = 0; i < dm->n; i++) {
-    wts = (model->weights)[i];
-    Memcpy(z, model->y + i * dm->p, dm->p);
-    ax_plus_y(-1., model->center, 1, z, 1, dm->p);
-    rank1_update(Scatter, dm->p, dm->p, dm->p, wts, z, z);
+
+  accum = (model->weights)[1];
+  Memcpy(center, model->y, dm->p);
+
+  for (i = 1; i < dm->n; i++) {
+    wts    = (model->weights)[i];
+    accum += wts;
+    factor = wts / accum;
+    Memcpy(diff, model->y + i * dm->p, dm->p);
+    ax_plus_y(-1.0, center, 1, diff, 1, dm->p);
+    ax_plus_y(factor, diff, 1, center, 1, dm->p);
+    factor = wts - factor * wts;
+    rank1_update(Scatter, dm->p, dm->p, dm->p, factor, diff, diff);
   }
+
+  Memcpy(model->center, center, dm->p);
   scale_mat(model->Scatter, dm->p, Scatter, dm->p, dm->p, dm->p, 1. / dm->n);
-  Free(z); Free(Scatter);
+
+  Free(diff); Free(center); Free(Scatter);
 }
 
 static double

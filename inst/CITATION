@@ -3,11 +3,11 @@ citHeader("To cite the heavy package in publications use:")
 citEntry(entry="Manual",
   title = "heavy: Robust estimation using heavy-tailed distributions",
   author = personList(as.person("Osorio, F.")),
-  year = "2017",
-  note = "R package version 0.381",
+  year = "2018",
+  note = "R package version 0.38.19",
   url = "https://CRAN.R-project.org/package=heavy",
-  textVersion = paste("Osorio, F. (2017). ",
+  textVersion = paste("Osorio, F. (2018). ",
   "heavy: Robust estimation using heavy-tailed distributions. ",
-  "R package version 0.381. ",
+  "R package version 0.38.19 ",
   "https://CRAN.R-project.org/package=heavy", sep="")
 )
