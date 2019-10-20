@@ -1,3 +1,5 @@
+/* ID: random.h, last updated 2019/08/02, F. Osorio */
+
 #ifndef HEAVY_RANDOM_H
 #define HEAVY_RANDOM_H
 

@@ -1,3 +1,5 @@
+# ID: distn.R, last updated 2019/09/06, F.Osorio */
+
 dtgamma <- function(x, shape, scale = 1, truncation = 1, log = FALSE)
 {
   if (missing(shape))

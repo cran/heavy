@@ -1,3 +1,5 @@
+/* ID: specfun.h, last updated 2019/08/05, F. Osorio */
+
 #ifndef HEAVY_SPECFUN_H
 #define HEAVY_SPECFUN_H
 

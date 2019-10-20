@@ -1,27 +1,23 @@
+/* ID: lme_fit.c, last updated 2019/08/08, F. Osorio */
+
 #include "lme_fit.h"
 
 /* static functions.. */
-
-/* functions to deal with dims objects */
 static DIMS dims(int *);
 static void dims_free(DIMS);
 
-/* routines for dealing with lenghts objects */
 static LENGTHS setLengths(DIMS, int *, int *);
 static void lengths_free(LENGTHS);
 
-/* initialization and pre-decomposition */
 static LME lme_init(double *, double *, double *, int *, int *, int *, double *, double *, double *, double *, double *, double *, double *, double *, double *);
 static void lme_free(LME);
 static void pre_decomp(double *, double *, double *, DIMS, LENGTHS);
 
-/* routines used in the iterative procedure */
 static int lme_iterate(LME);
 static void internal_EMcycle(LME);
 static void internal_Estep(LME);
 static void outer_Estep(LME);
 
-/* routines used in (internal) EM cycles */
 static void update_coef(LME);
 static void update_scale(LME);
 static void update_theta(LME);
@@ -32,19 +28,15 @@ static void random_effects(double *, int, DIMS, double *, double *);
 static double mahalanobis(double *, int, DIMS, double *, double *);
 static void working_response(double *, double *, int, DIMS, double *, double *);
 
-/* evaluation of marginal log-likelihood */
 static double lme_logLik(LME);
 
-/* routines for computation of fitted values */
 static FITTED lme_fitted_init(double *, int *, int *, int *, double *, double *, double *, double *);
 static void lme_fitted_free(FITTED);
 static void lme_fitted_values(FITTED);
 
-/* Fisher information matrix for the coefficients */
 static ACOV lme_acov_init(double *, int *, int *, int *, double *, double *, double *, double *, double *);
 static void lme_acov_free(ACOV);
 static void lme_acov_coef(ACOV);
-
 /* ..end declarations */
 
 void
@@ -54,8 +46,8 @@ lme_fit(double *ZX, double *y, double *qraux, int *pdims, int *lengths, int *DcL
 { /* fitter for linear mixed-effects models under heavy-tailed errors */
   LME model;
 
-  model = lme_init(ZX, y, qraux, pdims, lengths, DcLen, settings, coef, theta,
-                   scale, ranef, Root, distances, weights, control);
+  model = lme_init(ZX, y, qraux, pdims, lengths, DcLen, settings, coef, theta, scale,
+                   ranef, Root, distances, weights, control);
   pre_decomp(model->ZX, model->y, model->qraux, model->dm, model->lengths);
   control[6] = (double) lme_iterate(model);
   *logLik = lme_logLik(model);
@@ -89,7 +81,7 @@ static LENGTHS
 setLengths(DIMS dm, int *glen, int *DcLen)
 { /* constructor for a lenghts object */
   LENGTHS len;
-  int i, accum1 = 0, accum2 = 0, accum3 = 0;
+  int accum1 = 0, accum2 = 0, accum3 = 0;
 
   len = (LENGTHS) Calloc(1, LENGTHS_struct);
   len->glen  = glen;
@@ -99,7 +91,7 @@ setLengths(DIMS dm, int *glen, int *DcLen)
   len->ZXoff   = (int *) Calloc(dm->n, int);
   len->DcOff   = (int *) Calloc(dm->n, int);
   (len->ZXlen)[0] = (len->glen)[0] * (dm->ZXcols + 1);
-  for (i = 1; i < dm->n; i++) {
+  for (int i = 1; i < dm->n; i++) {
     (len->ZXlen)[i] = (len->glen)[i] * (dm->ZXcols + 1);
     accum1 += (len->glen)[i-1];
     (len->offsets)[i] = accum1;
@@ -120,7 +112,6 @@ lengths_free(LENGTHS this)
   Free(this->DcOff);
   Free(this);
 }
-
 
 static LME
 lme_init(double *ZX, double *y, double *qraux, int *pdims, int *lengths, int *DcLen,
@@ -149,7 +140,7 @@ lme_init(double *ZX, double *y, double *qraux, int *pdims, int *lengths, int *Dc
   model->control = control;
   /* some definitions */
   qsq = SQR(model->dm->q);
-  model->npar = model->dm->p + qsq + 1; /* not actually the 'npar'... */
+  model->npar = model->dm->p + qsq + 1;
   model->Delta = (double *) Calloc(qsq, double);
   model->maxIter = (int) control[0];
   model->tolerance = control[1];
@@ -174,17 +165,19 @@ static void
 pre_decomp(double *ZX, double *y, double *qraux, DIMS dm, LENGTHS glen)
 { /* return the pre-decomposition for ZXy */
   QRStruct qr;
-  int i, info = 0;
+  double *rsp;
+  int info = 0;
 
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     double *mat = ZX + (glen->offsets)[i];
     double *tau = qraux + i * dm->ZXcols;
-    qr  = QR_decomp(mat, dm->ZXrows, (glen->glen)[i], dm->ZXcols, tau, &info);
+    qr  = QR_decomp(mat, dm->ZXrows, (glen->glen)[i], dm->ZXcols, tau);
+    rsp = (double *) Calloc((glen->glen)[i], double);
+    Memcpy(rsp, y + (glen->offsets)[i], (glen->glen)[i]);
+    QR_qty(qr, y + (glen->offsets)[i], rsp, (glen->glen)[i], 1, &info);
     if (info)
-      error("DGEQR2 in pre_decomp gave code %d", info);
-    double *rsp = y + (glen->offsets)[i];
-    QR_qty(qr, rsp, (glen->glen)[i], (glen->glen)[i], 1);
-    QR_free(qr);
+      error("QR_qty in pre_decomp gave code %d", info);
+    Free(rsp); QR_free(qr);
   }
 }
 
@@ -237,22 +230,19 @@ internal_Estep(LME model)
   DIMS dm = model->dm;
   LENGTHS glen = model->lengths;
   double *Root;
-  int i;
 
   Root = (double *) Calloc(SQR(dm->ZXcols + 1), double);
   relative_precision(model->theta, dm->q, model->scale, model->Delta);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     double *R = model->ZX + (glen->offsets)[i];
     double *c = model->y + (glen->offsets)[i];
-    append_decomp(R, c, (glen->glen)[i], dm->ZXrows, dm->ZXcols, model->Delta,
-                  dm->q, Root, dm->ZXcols + 1);
+    append_decomp(R, c, (glen->glen)[i], dm->ZXrows, dm->ZXcols, model->Delta, dm->q, Root, dm->ZXcols + 1);
     double *ranef = model->ranef + i * dm->q;
     random_effects(Root, dm->ZXcols + 1, dm, model->coef, ranef);
-    (model->distances)[i] = mahalanobis(Root, dm->ZXcols + 1, dm, model->coef,
-                                        model->scale);
+    (model->distances)[i] = mahalanobis(Root, dm->ZXcols + 1, dm, model->coef, model->scale);
     double *Half = model->Root + i * dm->q * dm->q;
     upper_tri(Half, dm->q, Root, dm->ZXcols + 1, dm->q, dm->q);
-    zero_mat(Root, dm->ZXcols + 1, dm->ZXcols + 1, dm->ZXcols + 1);
+    setzero(Root, dm->ZXcols + 1, dm->ZXcols + 1, dm->ZXcols + 1);
   }
   Free(Root);
 }
@@ -262,9 +252,8 @@ outer_Estep(LME model)
 {
   DIMS dm = model->dm;
   LENGTHS glen = model->lengths;
-  int i;
 
-  for (i = 0; i < dm->n; i++)
+  for (int i = 0; i < dm->n; i++)
     (model->weights)[i] = do_weight(model->family, (glen->glen)[i], (model->distances)[i]);
 }
 
@@ -274,27 +263,27 @@ update_coef(LME model)
   DIMS dm = model->dm;
   LENGTHS glen = model->lengths;
   double wts, *R, *X, *working;
-  int i, info = 0;
+  int info = 0;
 
   X = (double *) Calloc(dm->DcRows * dm->p, double);
   working = (double *) Calloc(dm->DcRows, double);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     R = (double *) Calloc((glen->DcLen)[i] * dm->ZXcols, double);
-    double *ZXy = model->ZX + (glen->offsets)[i];
+    double *ZX = model->ZX + (glen->offsets)[i];
     double *rsp = model->y + (glen->offsets)[i];
     double *ranef = model->ranef + i * dm->q;
     wts = sqrt((model->weights)[i]);
-    upper_tri(R, (glen->DcLen)[i], ZXy, dm->ZXrows, (glen->DcLen)[i], dm->ZXcols);
+    upper_tri(R, (glen->DcLen)[i], ZX, dm->ZXrows, (glen->DcLen)[i], dm->ZXcols);
     working_response(R, rsp, (glen->DcLen)[i], dm, ranef, working + (glen->DcOff)[i]);
-    scale_mat(X + (glen->DcOff)[i], dm->DcRows, R + (glen->DcLen)[i] * dm->q,
-              (glen->DcLen)[i], (glen->DcLen)[i], dm->p, wts);
-    scale_mat(working + (glen->DcOff)[i], 0, working + (glen->DcOff)[i], 0,
-              (glen->DcLen)[i], 1, wts);
+    scale_mat(X + (glen->DcOff)[i], dm->DcRows, wts, R + (glen->DcLen)[i] * dm->q,
+              (glen->DcLen)[i], (glen->DcLen)[i], dm->p);
+    scale_mat(working + (glen->DcOff)[i], 0, wts, working + (glen->DcOff)[i], 0,
+              (glen->DcLen)[i], 0); // 1
     Free(R);
   }
   lsfit(X, dm->DcRows, dm->DcRows, dm->p, working, dm->DcRows, 1, model->coef, &info);
   if (info)
-    error("DGELS in update_coef gave code %d", info);
+    error("lsfit in update_coef gave code %d", info);
   Free(X); Free(working);
 }
 
@@ -314,26 +303,26 @@ static void
 update_theta(LME model)
 { /* update the scale matrix of random effects */
   DIMS dm = model->dm;
-  int i, info = 0, job = 1, qsq = SQR(dm->q);
+  int info = 0, job = 1, qsq = SQR(dm->q);
   double *accum, *Omega, scale, wts;
 
   scale = (model->scale)[0];
   accum = (double *) Calloc(qsq, double);
   Omega = (double *) Calloc(qsq, double);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     double *Root = model->Root + i * qsq;
     invert_triangular(Root, dm->q, dm->q, job, &info);
     if (info)
-      error("DTRTRI in update_theta gave code %d", info);
+      error("invert_triangular in update_theta gave code %d", info);
     outerprod(Omega, Root, dm->q, dm->q, dm->q, Root, dm->q, dm->q, dm->q);
-    scale_mat(Omega, dm->q, Omega, dm->q, dm->q, dm->q, scale);
+    scale_mat(Omega, dm->q, scale, Omega, dm->q, dm->q, dm->q);
     wts = (model->weights)[i];
     double *ranef = model->ranef + i * dm->q;
     rank1_update(Omega, dm->q, dm->q, dm->q, wts, ranef, ranef);
-    add_mat(accum, dm->q, 1., Omega, dm->q, dm->q, dm->q);
-    zero_mat(Omega, dm->q, dm->q, dm->q);
+    add_mat(accum, dm->q, 1.0, Omega, dm->q, dm->q, dm->q);
+    setzero(Omega, dm->q, dm->q, dm->q);
   }
-  scale_mat(model->theta, dm->q, accum, dm->q, dm->q, dm->q, 1. / dm->n);
+  scale_mat(model->theta, dm->q, 1.0 / dm->n, accum, dm->q, dm->q, dm->q);
   Free(accum); Free(Omega);
 }
 
@@ -342,13 +331,11 @@ update_nu(LME model)
 {
   DIMS dm = model->dm;
   double *lengths;
-  int i;
 
   lengths = (double *) Calloc(dm->n, double);
-  for (i = 0; i < dm->n; i++)
+  for (int i = 0; i < dm->n; i++)
     lengths[i] = (double) (model->lengths->glen)[i];
-  update_mixture(model->family, dm, model->distances, lengths, model->weights,
-                 model->tolerance);
+  update_mixture(model->family, dm, model->distances, lengths, model->weights, model->tolerance);
   Free(lengths);
 }
 
@@ -357,15 +344,15 @@ relative_precision(double *Psi, int q, double *scale, double *Delta)
 {
   int info = 0, job = 0; /* Delta is lower triangular */
 
-  zero_mat(Delta, q, q, q);
+  setzero(Delta, q, q, q);
   lower_tri(Delta, q, Psi, q, q, q);
   chol_decomp(Delta, q, q, job, &info);
   if (info)
-    error("DPOTRF in relative_precision gave code %d", info);
+    error("chol_decomp in relative_precision gave code %d", info);
   invert_triangular(Delta, q, q, job, &info);
   if (info)
-    error("DTRTRI in relative_precision gave code %d", info);
-  scale_mat(Delta, q, Delta, q, q, q, sqrt(*scale));
+    error("invert_triangular in relative_precision gave code %d", info);
+  scale_mat(Delta, q, sqrt(*scale), Delta, q, q, q);
 }
 
 static void
@@ -373,7 +360,7 @@ append_decomp(double *R, double *c, int glen, int nrow, int ncol, double *Delta,
   int q, double *Store, int ldStr)
 { /* apply a QR decomposition to the augmented matrix rbind(Rc, Delta),
    * triangular part is returned in Store */
-  int arow = glen + q, acol = ncol + 1, info = 0;
+  int arow = glen + q, acol = ncol + 1;
   double *aug, *qraux;
   QRStruct qr;
 
@@ -384,9 +371,7 @@ append_decomp(double *R, double *c, int glen, int nrow, int ncol, double *Delta,
   Memcpy(aug + arow * ncol, c, glen);
   lower_tri(aug + glen, arow, Delta, q, q, q);
 
-  qr = QR_decomp(aug, arow, arow, acol, qraux, &info);
-  if (info)
-    error("DGEQR2 in append_decomp gave code %d", info);
+  qr = QR_decomp(aug, arow, arow, acol, qraux);
   QR_store_R(qr, Store, ldStr);
 
   QR_free(qr); Free(aug); Free(qraux);
@@ -398,10 +383,10 @@ random_effects(double *Root, int ldRoot, DIMS dm, double *coef, double *ranef)
   int info = 0;
 
   Memcpy(ranef, Root + ldRoot * dm->ZXcols, dm->q);
-  GE_axpy(ranef, -1.0, Root + ldRoot * dm->q, ldRoot, dm->q, dm->q, coef, 1., 0);
+  GE_axpy(ranef, -1.0, Root + ldRoot * dm->q, ldRoot, dm->q, dm->p, coef, 1.0, 0);
   backsolve(Root, ldRoot, dm->q, ranef, dm->q, 1, 1, &info);
   if (info)
-    error("DTRTRS in random_effects gave code %d", info);
+    error("backsolve in random_effects gave code %d", info);
 }
 
 static double
@@ -411,7 +396,7 @@ mahalanobis(double *Root, int ldRoot, DIMS dm, double *coef, double *scale)
 
   z = (double *) Calloc(dm->p + 1, double);
   Memcpy(z, Root + ldRoot * dm->ZXcols + dm->q, dm->p + 1);
-  GE_axpy(z, -1.0, Root + ldRoot * dm->q + dm->q, ldRoot, dm->p, dm->p, coef, 1., 0);
+  GE_axpy(z, -1.0, Root + ldRoot * dm->q + dm->q, ldRoot, dm->p, dm->p, coef, 1.0, 0);
   dist = norm_sqr(z, 1, dm->p + 1) / *scale;
   Free(z);
   return dist;
@@ -421,20 +406,20 @@ static void
 working_response(double *R, double *c, int DcLen, DIMS dm, double *ranef, double *working)
 { /* compute the working response */
   Memcpy(working, c, DcLen);
-  GE_axpy(working, -1.0, R, DcLen, dm->q, dm->q, ranef, 1., 0);
+  GE_axpy(working, -1.0, R, DcLen, dm->q, dm->q, ranef, 1.0, 0);
 }
 
 static double
 lme_logLik(LME model)
 { /* evaluate the log-likelihood function */
   DIMS dm = model->dm;
-  int i, qsq = SQR(dm->q);
-  double *lengths, accum = 0., kernel, logDet, scale;
+  int qsq = SQR(dm->q);
+  double *lengths, accum = 0.0, kernel, logDet, scale;
 
   scale = (model->scale)[0];
   relative_precision(model->theta, dm->q, model->scale, model->Delta);
   lengths = (double *) Calloc(dm->n, double);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     double *Root = model->Root + i * qsq;
     accum += logAbsDet(Root, dm->q, dm->q);
     lengths[i] = (double) (model->lengths->glen)[i];
@@ -442,12 +427,12 @@ lme_logLik(LME model)
   logDet = logAbsDet(model->Delta, dm->q, dm->q);
   kernel = logLik_kernel(model->family, dm, lengths, model->distances);
   Free(lengths);
-  return (kernel - .5 * dm->N * log(scale) + dm->n * logDet + accum);
+  return (kernel - 0.5 * dm->N * log(scale) + dm->n * logDet + accum);
 }
 
 void
-lme_fitted(double *ZX, int *pdims, int *lengths, int *DcLen, double *coef,
-  double *ranef, double *conditional, double *marginal)
+lme_fitted(double *ZX, int *pdims, int *lengths, int *DcLen, double *coef, double *ranef,
+  double *conditional, double *marginal)
 {
   FITTED ans;
 
@@ -457,8 +442,8 @@ lme_fitted(double *ZX, int *pdims, int *lengths, int *DcLen, double *coef,
 }
 
 static FITTED
-lme_fitted_init(double *ZX, int *pdims, int *lengths, int *DcLen, double *coef,
-  double *ranef, double *conditional, double *marginal)
+lme_fitted_init(double *ZX, int *pdims, int *lengths, int *DcLen, double *coef, double *ranef,
+  double *conditional, double *marginal)
 { /* constructor for a fitted object */
   FITTED ans;
 
@@ -486,24 +471,23 @@ lme_fitted_values(FITTED object)
 {
   DIMS dm = object->dm;
   LENGTHS glen = object->lengths;
-  int i, job = 0;
+  int job = 0;
 
   /* marginal fitted values */
-  GE_axpy(object->marginal, 1., object->ZX + dm->ZXrows * dm->q, dm->ZXrows,
-          dm->ZXrows, dm->p, object->coef, 0., job);
+  GE_axpy(object->marginal, 1.0, object->ZX + dm->ZXrows * dm->q, dm->ZXrows, dm->ZXrows, dm->p, object->coef, 0.0, job);
   /* conditional fitted values */
   Memcpy(object->conditional, object->marginal, dm->ZXrows);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     double *Z = object->ZX + (glen->offsets)[i];
     double *yFit = object->conditional + (glen->offsets)[i];
     double *ranef = object->ranef + i * dm->q;
-    GE_axpy(yFit, 1., Z, dm->ZXrows, (glen->glen)[i], dm->q, ranef, 1., job);
+    GE_axpy(yFit, 1.0, Z, dm->ZXrows, (glen->glen)[i], dm->q, ranef, 1.0, job);
   }
 }
 
 void
-lme_acov(double *ZX, int *pdims, int *lengths, int *DcLen, double *settings,
-  double *Root, double *scale, double *control, double *acov)
+lme_acov(double *ZX, int *pdims, int *lengths, int *DcLen, double *settings, double *Root,
+  double *scale, double *control, double *acov)
 {
   ACOV ans;
 
@@ -546,14 +530,14 @@ lme_acov_coef(ACOV object)
   DIMS dm = object->dm;
   LENGTHS glen = object->lengths;
   FAMILY family = object->family;
-  int i = 0, qsq = SQR(dm->q);
+  int qsq = SQR(dm->q);
   double factor, *accum, *cross, *prod, *outer, *Z, *R;
 
   accum = (double *) Calloc(SQR(dm->p), double);
   cross = (double *) Calloc(SQR(dm->p), double);
   prod  = (double *) Calloc(dm->p * dm->q, double);
   outer = (double *) Calloc(SQR(dm->p), double);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     R = (double *) Calloc((glen->glen)[i] * dm->ZXcols, double);
     double *ZX = object->ZX + (glen->offsets)[i];
     upper_tri(R, (glen->glen)[i], ZX, dm->ZXrows, (glen->glen)[i], dm->ZXcols);
@@ -566,7 +550,7 @@ lme_acov_coef(ACOV object)
     crossprod(prod, R + (glen->glen)[i] * dm->q, (glen->glen)[i], dm->q, dm->p,
               Z, (glen->glen)[i], dm->q, dm->q);
     outerprod(outer, prod, dm->p, dm->p, dm->q, prod, dm->p, dm->p, dm->q);
-    add_mat(cross, dm->p, -1., outer, dm->p, dm->p, dm->p);
+    add_mat(cross, dm->p, -1.0, outer, dm->p, dm->p, dm->p);
     factor  = acov_scale(family, (glen->glen)[i], object->ndraws);
     factor /= (glen->glen)[i];
     add_mat(accum, dm->p, factor, cross, dm->p, dm->p, dm->p);

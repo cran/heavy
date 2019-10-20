@@ -1,40 +1,35 @@
+/* ID: family.c, last updated 2019/08/02, F. Osorio */
+
 #include "family.h"
 
 /* static functions.. */
-
-/* computation of 'robust' weights */
 static double weight_normal();
 static double weight_cauchy(double, double);
 static double weight_student(double, double, double);
 static double weight_slash(double, double, double);
 static double weight_contaminated(double, double, double, double);
 
-/* random number generation from the distribution of the 'weights' */
 static double rand_weight_normal();
 static double rand_weight_cauchy(double, double);
 static double rand_weight_student(double, double, double);
 static double rand_weight_slash(double, double, double);
 
-/* parameter estimation of mixture variables */
 static double negQfnc_student(double, void *);
 static void update_df_student(DIMS, double *, double *, double *, double);
 static double logwts_slash(double, double, double);
 static void update_df_slash(DIMS, double *, double *, double *);
 
-/*  evaluation of the log-likelihood */
 static double logLik_normal(DIMS, double *);
 static double logLik_cauchy(DIMS, double *, double *);
 static double logLik_student(DIMS, double *, double, double *);
 static double logLik_slash(DIMS, double *, double, double *);
 static double logLik_contaminated(DIMS, double *, double, double, double *);
 
-/* scale factor for the Fisher information matrix */
 static double acov_scale_normal();
 static double acov_scale_cauchy(double);
 static double acov_scale_student(double, double);
 static double acov_scale_slash(double, double, int);
 static double acov_scale_contaminated(double, double, double, int);
-
 /* ..end declarations */
 
 /* functions for dealing with 'family' objects */
@@ -195,7 +190,7 @@ rand_weight(FAMILY family, double length, double distance)
       wts = rand_weight_slash(length, df, distance);
       break;
     case CONTAMINATED:
-      wts = rand_weight_normal();
+      wts = rand_weight_normal(); /* FIXME */
       break;
     default:
       wts = rand_weight_normal();
@@ -211,10 +206,9 @@ negQfnc_student(double df, void *pars)
 { /* for brent procedure */
   QTpars st = (QTpars) pars;
   DIMS dm = st->dm;
-  int i;
   double accum = 0.0, val;
 
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     accum += log((st->weights)[i]) - (st->weights)[i];
     accum += digamma(.5 * (st->df + (st->lengths)[i])) - log(.5 * (st->df + (st->lengths)[i]));
   }
@@ -272,10 +266,9 @@ logwts_slash(double length, double df, double distance)
 static void
 update_df_slash(DIMS dm, double *df, double *distances, double *lengths)
 { /* update df for slash distribution */
-  int i;
   double accum = 0.0;
 
-  for (i = 0; i < dm->n; i++)
+  for (int i = 0; i < dm->n; i++)
     accum += logwts_slash(lengths[i], *df, distances[i]);
 
   *df  = dm->n;
@@ -298,7 +291,7 @@ update_mixture(FAMILY family, DIMS dm, double *distances, double *lengths,
       update_df_slash(dm, family->nu, distances, lengths);
       break;
     case CONTAMINATED:
-      break;
+      break; /* FIXME */
     default:
       break;
   }
@@ -309,10 +302,9 @@ update_mixture(FAMILY family, DIMS dm, double *distances, double *lengths,
 static double
 logLik_normal(DIMS dm, double *distances)
 { /* gaussian log-likelihood */
-  int i;
   double accum = 0.0;
 
-  for (i = 0; i < dm->n; i++)
+  for (int i = 0; i < dm->n; i++)
     accum += *distances++;
   return (-.5 * accum - dm->N * M_LN_SQRT_2PI);
 }
@@ -320,10 +312,9 @@ logLik_normal(DIMS dm, double *distances)
 static double
 logLik_cauchy(DIMS dm, double *lengths, double *distances)
 { /* Cauchy log-likelihood */
-  int i;
   double accum = 0.0, p;
 
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     p = *lengths++;
     accum += lgammafn(.5 * (p + 1.)) - .5 * (p + 1.) * log1p(*distances++);
   }
@@ -333,11 +324,10 @@ logLik_cauchy(DIMS dm, double *lengths, double *distances)
 static double
 logLik_student(DIMS dm, double *lengths, double df, double *distances)
 { /* Student-t log-likelihood */
-  int i;
-  double accum = 0.0, p, c;
+  double accum = 0.0, c, p;
 
   c = dm->n * lgammafn(.5 * df) + .5 * dm->N * (log(df) + 2. * M_LN_SQRT_PI);
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     p = *lengths++;
     accum += lgammafn(.5 * (df + p)) - .5 * (df + p) * log1p(*distances++ / df);
   }
@@ -347,10 +337,10 @@ logLik_student(DIMS dm, double *lengths, double df, double *distances)
 static double
 logLik_slash(DIMS dm, double *lengths, double df, double *distances)
 { /* Slash log-likelihood */
-  int i, lower_tail = 1, log_p = 1;
+  int lower_tail = 1, log_p = 1;
   double accum = 0.0, p, u, shape;
 
-  for (i = 0; i < dm->n; i++) {
+  for (int i = 0; i < dm->n; i++) {
     p = *lengths++;
     u = *distances++;
     shape = df + p / 2.;
@@ -363,10 +353,9 @@ logLik_slash(DIMS dm, double *lengths, double df, double *distances)
 static double
 logLik_contaminated(DIMS dm, double *lengths, double eps, double vif, double *distances)
 { /* contaminated-normal log-likelihood */
-  int i;
   double accum = 0.0, p, f, u;
 
-  for(i = 0; i < dm->n; i++) {
+  for(int i = 0; i < dm->n; i++) {
     p = *lengths++;
     u = *distances++;
     f = eps * pow(vif, .5 * p) * exp(-.5 * vif * u) + (1. - eps) * exp(-.5 * u);
@@ -436,7 +425,6 @@ acov_scale_student(double length, double df)
 static double
 acov_scale_slash(double length, double df, int ndraws)
 { /* slash scale */
-  int i;
   double accum = 0., u, w, *z;
 
   if (df > 30.)
@@ -444,7 +432,7 @@ acov_scale_slash(double length, double df, int ndraws)
   z = (double *) Calloc(length, double);
 
   GetRNGstate();
-  for (i = 0; i < ndraws; i++) {
+  for (int i = 0; i < ndraws; i++) {
     rand_spherical_slash(z, df, 1, length);
     u = norm_sqr(z, 1, length);
     w = weight_slash(length, df, u);
@@ -460,13 +448,12 @@ acov_scale_slash(double length, double df, int ndraws)
 static double
 acov_scale_contaminated(double length, double epsilon, double vif, int ndraws)
 { /* contaminated normal scale */
-  int i;
   double accum = 0., u, w, *z;
 
   z = (double *) Calloc(length, double);
 
   GetRNGstate();
-  for (i = 0; i < ndraws; i++) {
+  for (int i = 0; i < ndraws; i++) {
     rand_spherical_contaminated(z, epsilon, vif, 1, length);
     u = norm_sqr(z, 1, length);
     w = weight_contaminated(length, epsilon, vif, u);

@@ -1,3 +1,5 @@
+/* ID: family.h, last updated 2019/08/02, F. Osorio */
+
 #ifndef HEAVY_FAMILY_H
 #define HEAVY_FAMILY_H
 

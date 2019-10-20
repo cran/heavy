@@ -1,3 +1,5 @@
+/* ID: distn.h, last updated 2019/08/02, F. Osorio */
+
 #ifndef HEAVY_DISTN_H
 #define HEAVY_DISTN_H
 

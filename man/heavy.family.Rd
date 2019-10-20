@@ -9,8 +9,8 @@
 \title{Family objects for heavy-tailed distributions}
 \description{
   Provide a convenient way to specify the details of the models used by the fitter functions.
-  (i.e., \code{\link{heavyFit}}, \code{\link{heavyLm}}, \code{\link{heavyLme}} and \code{\link{heavyPS}}
-  functions).
+  (i.e., \code{\link{heavyFit}}, \code{\link{heavyGrubbs}}, \code{\link{heavyLm}},
+  \code{\link{heavyLme}} and \code{\link{heavyPS}} functions).
 }
 \usage{
 normal()
@@ -29,7 +29,7 @@ contaminated(epsilon = 0.05, vif = 0.25)
   which is passed to the estimation algorithm.
 }
 
-\seealso{\code{\link{heavyFit}}, \code{\link{heavyLm}}, \code{\link{heavyLme}}, \code{\link{heavyPS}}}
+\seealso{\code{\link{heavyFit}}, \code{\link{heavyGrubbs}}, \code{\link{heavyLm}}, \code{\link{heavyLme}}, \code{\link{heavyPS}}}
 
 \examples{
 CauchyFmly <- Student(df = 1)

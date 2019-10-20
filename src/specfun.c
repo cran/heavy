@@ -1,3 +1,5 @@
+/* ID: specfun.c, last updated 2019/08/05, F. Osorio */
+
 #include "specfun.h"
 
 /* static functions.. */
@@ -16,28 +18,27 @@ cdf_gamma_derivatives(double *x, double *shape, double *scale, double *deriv)
 
 double
 pgamma_asymp(double x, double a, double scale)
-{ /* Computes the regularized incomplete gamma function using a normal
-   * approximation */
-   double z;
+{ /* Computes the regularized incomplete gamma function using a normal approximation */
+  double z;
 
-   x *= scale;
-   z  =  3. * sqrt(a) * (R_pow(x / a, 1. / 3.) + 1. / (9. * a) - 1.);
+  x *= scale;
+  z  =  3.0 * sqrt(a) * (R_pow(x / a, 1.0 / 3.0) + 1.0 / (9.0 * a) - 1.0);
 
-   return pnorm(z, 0., 1., 1, 0);
+  return pnorm(z, 0., 1., 1, 0);
 }
 
 void
 pgamma_derivative(double x, double a, double scale, double *deriv)
 { /* Computes the first derivative of the incomplete gamma function.
    * Algorithm 187: Applied Statistics 31, 1982, pp. 330-335 */
-  if (a <= 0. || scale <= 0.)
+  if (a <= 0.0 || scale <= 0.0)
     return;	/* should not happen */
 
   x *= scale;
 
-  if (a > 600.)
+  if (a > 600.0)
     pg_asymp(x, a, deriv);
-  else if (x > 1. && x >= a)
+  else if (x > 1.0 && x >= a)
     pg_continued_fraction(x, a, deriv);
   else
     pg_series_expansion(x, a, deriv);
@@ -62,14 +63,14 @@ pg_asymp(double x, double a, double *deriv)
    * function using a normal approximation */
   double u, z, z_dot;
 
-  z      =  3. * sqrt(a) * (R_pow(x / a, 1. / 3.) + 1. / (9. * a) - 1.);
-  z_dot  = .5 * (R_pow(x / a, 1. / 3.) + 1. / (3. * a) - 3.) / sqrt(a);
-  u  = (5. * R_pow(x / a, 1. / 3.) / 3. - 1. / a - 3.) / sqrt(a);
-  u += 12. * R_pow(a, 1.5) * z * R_pow(z_dot, 2.);
+  z      =  3.0 * sqrt(a) * (R_pow(x / a, 1.0 / 3.0) + 1.0 / (9.0 * a) - 1.0);
+  z_dot  = 0.5 * (R_pow(x / a, 1.0 / 3.0) + 1.0 / (3.0 * a) - 3.0) / sqrt(a);
+  u  = (5.0 * R_pow(x / a, 1.0 / 3.0) / 3.0 - 1.0 / a - 3.0) / sqrt(a);
+  u += 12.0 * R_pow(a, 1.5) * z * R_pow(z_dot, 2.0);
 
-  deriv[0] = pnorm(z, 0., 1., 1, 0);
-  deriv[1] = z_dot * dnorm(z, 0., 1., 0);
-  deriv[2] = -.25 * dnorm(z, 0., 1., 0) * u;
+  deriv[0] = pnorm(z, 0.0, 1.0, 1, 0);
+  deriv[1] = z_dot * dnorm(z, 0.0, 1.0, 0);
+  deriv[2] = -0.25 * dnorm(z, 0.0, 1.0, 0) * u;
 }
 
 static void
@@ -80,7 +81,7 @@ pg_continued_fraction(double x, double a, double *deriv)
   double i, b, g, p, s0;
   double c1, c2, c3, c4, c5, c6, d1, d2, d3, d4, d5, d6, e1, e2, e3, e4, e5, e6;
   double f, f_dot, f_ddot, s, s_dot, s_ddot;
-  const static double eps = 1.e-06, max_it = 10000., scalefactor = 1.e+30;
+  const static double eps = 1.0e-06, max_it = 10000.0, scalefactor = 1.0e+30;
 
   /* set constants */
   xlog    = log(x);
@@ -94,18 +95,18 @@ pg_continued_fraction(double x, double a, double *deriv)
   f_ddot = f_dot * f_dot / f - f * psi_dot;
 
   /* Use a continued fraction expansion */
-  p  = a - 1.;
-  b  = x + 1. - p;
-  c1 = 1.;
+  p  = a - 1.0;
+  b  = x + 1.0 - p;
+  c1 = 1.0;
   c2 = x;
-  c3 = x + 1.;
+  c3 = x + 1.0;
   c4 = x * b;
-  c5 = c6 = 0.;
+  c5 = c6 = 0.0;
   s0 = c3 / c4;
-  d1 = d2 = d3 = d5 = d6 = 0.;
+  d1 = d2 = d3 = d5 = d6 = 0.0;
   d4 = -x;
-  e1 = e2 = e3 = e4 = e5 = e6 = 0.;
-  i  = 0.;
+  e1 = e2 = e3 = e4 = e5 = e6 = 0.0;
+  i  = 0.0;
 
   while (i < max_it) {
     i++;
@@ -167,7 +168,7 @@ pg_series_expansion(double x, double a, double *deriv)
    * using a series expansion */
   double lgamma_plus_1, psi, psi_plus_1, psi_dot, psi_dot_plus_1, xlog;
   double f, f_dot, f_ddot, term, term_dot, term_ddot, sum, sum_dot, sum_ddot, p, rel;
-  const static double max_it = 200.;
+  const static double max_it = 200.0;
 
   /* set constants */
   xlog = log(x);
@@ -183,19 +184,19 @@ pg_series_expansion(double x, double a, double *deriv)
   f_ddot = f_dot * f_dot / f - f * psi_dot_plus_1;
 
   /* Pearson's series expansion */
-  term = 1.;
-  sum  = 1.;
-  term_dot  = 0.;
-  term_ddot = 0.;
-  sum_dot   = 0.;
-  sum_ddot  = 0.;
+  term = 1.0;
+  sum  = 1.0;
+  term_dot  = 0.0;
+  term_ddot = 0.0;
+  sum_dot   = 0.0;
+  sum_ddot  = 0.0;
   p = a;
 
   do {
     p++;
 
     rel = term_dot / term;
-    term_dot  = rel - 1. / p;
+    term_dot  = rel - 1.0 / p;
     term_ddot =  term_ddot / term - rel * rel + 1.0 / (a * a);
 
     term *= x / p;

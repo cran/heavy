@@ -17,7 +17,7 @@ heavyMLm.fit(x, y, family = Student(df = 4), control = heavy.control())
 }
 
 \arguments{
-  \item{x}{ design matrix of dimension \code{n * p}.}
+  \item{x}{ design matrix of dimension \code{n}-by-\code{p}.}
   \item{y}{ vector of observations of length \code{n}, or a matrix with
     \code{n} rows.}
   \item{family}{ a description of the error distribution to be used in the model.

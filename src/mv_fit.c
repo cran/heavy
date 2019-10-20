@@ -1,12 +1,11 @@
+/* ID: mv_fit.c, last updated 2019/08/05, F. Osorio */
+
 #include "mv_fit.h"
 
 /* static functions.. */
-
-/* functions to deal with dims objects */
 static DIMS dims(int *);
 static void dims_free(DIMS);
 
-/* routines for ML estimation of location vector and the scale matrix */
 static MV mv_init(double *, int *, double *, double *, double *, double *, double *, double *, double *);
 static void mv_free(MV);
 static int mv_iterate(MV);
@@ -14,10 +13,8 @@ static void mv_Estep(MV);
 static double mahalanobis(double *, int, double *, double *);
 static void center_and_Scatter(MV);
 
-/* routines for evaluation of marginal log-likelihood and Fisher information matrix */
 static void mv_acov(FAMILY, DIMS, double *, int, double *);
 static double mv_logLik(FAMILY, DIMS, double *, double *);
-
 /* ..end declarations */
 
 void
@@ -86,12 +83,12 @@ mv_free(MV this)
 static int
 mv_iterate(MV model)
 {
-  int i, iter = 0;
-  double conv, tol = R_pow(model->tolerance, 2./3.), *lengths, RSS, newRSS;
+  int iter = 0;
+  double conv, tol = R_pow(model->tolerance, 2.0/3.0), *lengths, RSS, newRSS;
 
   /* initialization */
   lengths = (double *) Calloc(model->dm->n, double);
-  for (i = 0; i < model->dm->n; i++)
+  for (int i = 0; i < model->dm->n; i++)
     lengths[i] = (double) model->dm->p;
   RSS = (double) model->dm->n * model->dm->p;
 
@@ -103,8 +100,7 @@ mv_iterate(MV model)
     /* CM-steps */
     center_and_Scatter(model);
     if (!(model->fixShape))
-      update_mixture(model->family, model->dm, model->distances, lengths,
-                     model->weights, tol);
+      update_mixture(model->family, model->dm, model->distances, lengths, model->weights, tol);
     newRSS = dot_product(model->weights, 1, model->distances, 1, model->dm->n);
 
     iter++;
@@ -124,20 +120,20 @@ mv_iterate(MV model)
 static void
 mv_Estep(MV model)
 {
-    DIMS dm = model->dm;
-    double *Root;
-    int i, info = 0, job = 0;
+  DIMS dm = model->dm;
+  double *Root;
+  int info = 0, job = 0;
 
-    Root = (double *) Calloc(SQR(dm->p), double);
-    copy_mat(Root, dm->p, model->Scatter, dm->p, dm->p, dm->p);
-    chol_decomp(Root, dm->p, dm->p, job, &info);
-    if (info)
-        error("chol_decomp in mv_Estep gave code %d", info);
-    for (i = 0; i < dm->n; i++) {
-        (model->distances)[i] = mahalanobis(model->y + i * dm->p, dm->p, model->center, Root);
-        (model->weights)[i] = do_weight(model->family, (double) dm->p, (model->distances)[i]);
-    }
-    Free(Root);
+  Root = (double *) Calloc(SQR(dm->p), double);
+  copy_mat(Root, dm->p, model->Scatter, dm->p, dm->p, dm->p);
+  chol_decomp(Root, dm->p, dm->p, job, &info);
+  if (info)
+    error("chol_decomp in mv_Estep gave code %d", info);
+  for (int i = 0; i < dm->n; i++) {
+    (model->distances)[i] = mahalanobis(model->y + i * dm->p, dm->p, model->center, Root);
+    (model->weights)[i] = do_weight(model->family, (double) dm->p, (model->distances)[i]);
+  }
+  Free(Root);
 }
 
 static double
@@ -148,10 +144,10 @@ mahalanobis(double *y, int p, double *center, double *Root)
 
   z = (double *) Calloc(p, double);
   Memcpy(z, y, p);
-  ax_plus_y(-1., center, 1, z, 1, p);
+  ax_plus_y(-1.0, center, 1, z, 1, p);
   backsolve(Root, p, p, z, p, 1, job, &info);
   if (info)
-    error("DTRTRS in mahalanobis gave code %d", info);
+    error("backsolve in mahalanobis gave code %d", info);
   ans = norm_sqr(z, 1, p);
   Free(z);
   return ans;
@@ -163,7 +159,6 @@ center_and_Scatter(MV model)
    * based on AS 41: Applied Statistics 20, 1971, pp. 206-209 */
   DIMS dm = model->dm;
   double factor, wts, *center, *Scatter, *diff;
-  int i;
   double accum = 0.0;
 
   diff    = (double *) Calloc(dm->p, double);
@@ -173,7 +168,7 @@ center_and_Scatter(MV model)
   accum = (model->weights)[1];
   Memcpy(center, model->y, dm->p);
 
-  for (i = 1; i < dm->n; i++) {
+  for (int i = 1; i < dm->n; i++) {
     wts    = (model->weights)[i];
     accum += wts;
     factor = wts / accum;
@@ -185,7 +180,7 @@ center_and_Scatter(MV model)
   }
 
   Memcpy(model->center, center, dm->p);
-  scale_mat(model->Scatter, dm->p, Scatter, dm->p, dm->p, dm->p, 1. / dm->n);
+  scale_mat(model->Scatter, dm->p, 1.0 / dm->n, Scatter, dm->p, dm->p, dm->p);
 
   Free(diff); Free(center); Free(Scatter);
 }
@@ -193,17 +188,17 @@ center_and_Scatter(MV model)
 static double
 mv_logLik(FAMILY family, DIMS dm, double *distances, double *Scatter)
 { /* evaluate the log-likelihood function for multivariate distributions */
-  double ans = 0., *lengths, *Root;
-  int i, info = 0, job = 0;
+  double ans = 0.0, *lengths, *Root;
+  int info = 0, job = 0;
 
   lengths = (double *) Calloc(dm->n, double);
-  for (i = 0; i < dm->n; i++)
+  for (int i = 0; i < dm->n; i++)
     lengths[i] = (double) dm->p;
   Root = (double *) Calloc(SQR(dm->p), double);
   copy_mat(Root, dm->p, Scatter, dm->p, dm->p, dm->p);
   chol_decomp(Root, dm->p, dm->p, job, &info);
   if (info)
-    error("DPOTRF in mv_logLik gave code %d", info);
+    error("chol_decomp in mv_logLik gave code %d", info);
   ans -= dm->n * logAbsDet(Root, dm->p, dm->p);
   ans += logLik_kernel(family, dm, lengths, distances);
   Free(lengths); Free(Root);
@@ -218,5 +213,5 @@ mv_acov(FAMILY family, DIMS dm, double *Scatter, int ndraws, double *aCov)
   /* scaling */
   length = (double) dm->p;
   factor = 1. / acov_scale(family, length, ndraws);
-  scale_mat(aCov, dm->p, Scatter, dm->p, dm->p, dm->p, factor);
+  scale_mat(aCov, dm->p, factor, Scatter, dm->p, dm->p, dm->p);
 }

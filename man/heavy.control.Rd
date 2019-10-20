@@ -24,13 +24,14 @@ heavy.control(maxIter = 2000, tolerance = 1e-6, fix.shape = FALSE,
 }
 
 \value{
-  A list of control arguments to be used in a call to the fitter (i.e., \code{\link{heavyFit}}, \code{\link{heavyLm}},
-  \code{\link{heavyLme}} or \code{\link{heavyPS}} functions).
+  A list of control arguments to be used in a call to the fitter (i.e., \code{\link{heavyFit}},
+  \code{\link{heavyGrubbs}}, \code{\link{heavyLm}}, \code{\link{heavyLme}} or \code{\link{heavyPS}}
+  functions).
 
   A call to \code{heavy.control} can be used directly in the control argument of the call to the fitter.
 }
 
-\seealso{\code{\link{heavyFit}}, \code{\link{heavyLm}}, \code{\link{heavyLme}}, \code{\link{heavyPS}}}
+\seealso{\code{\link{heavyFit}}, \code{\link{heavyGrubbs}}, \code{\link{heavyLm}}, \code{\link{heavyLme}}, \code{\link{heavyPS}}}
 
 \examples{
 ctrl <- heavy.control(maxIter = 200, tol = 1e-04, ndraws = 9000)

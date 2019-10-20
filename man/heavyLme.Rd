@@ -13,24 +13,24 @@ heavyLme(fixed, random, groups, data, family = Student(df = 4),
 }
 
 \arguments{
-  \item{fixed}{ a two-sided linear formula object describing the fixed-effects part of the model, 
+  \item{fixed}{ a two-sided linear formula object describing the fixed-effects part of the model,
   with the response on the left of a ~ operator and the terms, separated by + operators.}
   \item{random}{  a one-sided formula of the form ~x1+...+xn specifying the model for the random effects.}
   \item{groups}{ a one-sided formula for specifying the grouping variable.}
-  \item{data}{ an optional data frame containing the variables named in \code{fixed}, \code{random} and \code{group}. 
+  \item{data}{ an optional data frame containing the variables named in \code{fixed}, \code{random} and \code{group}.
   By default the variables are taken from the environment from which heavy.lme is called.}
-  \item{family}{ a description of the error distribution to be used in the model. 
+  \item{family}{ a description of the error distribution to be used in the model.
   By default the Student-t distribution with 4 degrees of freedom is considered.}
   \item{subset}{ an optional expression indicating the subset of the rows of data that should be used in the fitting process.}
   \item{na.action}{ a function that indicates what should happen when the data contain NAs.}
-  \item{control}{ a list of control values for the estimation algorithm to replace the default 
+  \item{control}{ a list of control values for the estimation algorithm to replace the default
   values returned by the function \code{\link{heavy.control}}.}
 }
 
 \value{
   An object of class \code{heavyLme} representing the linear mixed-effects model fit. Generic function \code{print}
   and \code{summary}, show the results of the fit.
-  
+
   The following components must be included in a legitimate \code{heavyLme} object.
   \item{lmeData}{  an object representing a list of mixed-effects model components.}
   \item{call}{  a list containing an image of the \code{heavyLme} call that produced the object.}
@@ -55,8 +55,13 @@ heavyLme(fixed, random, groups, data, family = Student(df = 4),
 
 \examples{
 data(dental)
-fit <- heavyLme(distance ~ age * Sex, random = ~ age, groups = ~ Subject, 
+fm0 <- heavyLme(distance ~ age * Sex, random = ~ age, groups = ~ Subject,
   data = dental, family = Student(df = 4))
-summary(fit)
+summary(fm0)
+
+# fitting model with fixed degrees of freedom
+fm1 <- heavyLme(distance ~ age * Sex, random = ~ age, groups = ~ Subject,
+  data = dental, family = Student(df = 4), control = heavy.control(fix.shape = TRUE))
+summary(fm1) # fixed at df = 4
 }
 \keyword{models}

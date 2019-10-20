@@ -1,32 +1,27 @@
+/* ID: matrix.c, last updated 2019/07/31, F. Osorio */
+
 #include "matrix.h"
 
-/* basic matrix manipulations */
+/* basic vector manipulations */
 
 double
 dot_product(double *x, int incx, double *y, int incy, int n)
 { /* sum(x * y) */
-  double ans;
-
-  ans = F77_CALL(ddot)(&n, x, &incx, y, &incy);
-  return ans;
+  return F77_CALL(ddot)(&n, x, &incx, y, &incy);
 }
 
 double
 norm_sqr(double *x, int inc, int n)
 { /* sum(x * x) */
-  double ans;
-
-  ans = F77_CALL(dnrm2)(&n, x, &inc);
-  return SQR(ans);
+  double x2norm;
+  x2norm = F77_CALL(dnrm2)(&n, x, &inc);
+  return R_pow_di(x2norm, 2);
 }
 
 double
 sum_abs(double *x, int inc, int n)
 { /* sum(abs(x)) */
-  double ans;
-
-  ans = F77_CALL(dasum)(&n, x, &inc);
-  return ans;
+  return F77_CALL(dasum)(&n, x, &inc);
 }
 
 void
@@ -37,13 +32,13 @@ ax_plus_y(double alpha, double *x, int incx, double *y, int incy, int n)
 
 void
 copy_vec(double *y, int incy, double *x, int incx, int n)
-{ /* y <- x */
+{ /* y <- x (alternative to Memcpy with increments not equal to 1) */
   F77_CALL(dcopy)(&n, x, &incx, y, &incy);
 }
 
 void
 scale_vec(double alpha, double *x, int inc, int n)
-{ /* x <- alpha * x */
+{ /* x <- alpha * x (x is overwritten) */
   F77_CALL(dscal)(&n, &alpha, x, &inc);
 }
 
@@ -54,48 +49,49 @@ swap_vec(double *x, int incx, double *y, int incy, int n)
 }
 
 void
-zero_mat(double *y, int ldy, int nrow, int ncol)
-{ /* y[,] <- 0 */
-  int i, j;
+hadamard_prod(double *prod, double *x, double *y, int n)
+{ /* prod <- x * y */
+  for (int i = 0; i < n; i++)
+    *prod++ = *x++ * *y++;
+}
 
-  for (j = 0; j < ncol; j++) {
-    for (i = 0; i < nrow; i++)
-      y[i] = 0.0;
-    y += ldy;
+/* basic matrix manipulations */
+
+void
+add_mat(double *y, int ldy, double alpha, double *x, int ldx, int nrow, int ncol)
+{ /* y <- alpha * x + y */
+  for (int j = 0; j < ncol; j++) {
+    ax_plus_y(alpha, x, 1, y, 1, nrow);
+    y += ldy; x += ldx;
   }
 }
 
 void
 copy_mat(double *y, int ldy, double *x, int ldx, int nrow, int ncol)
 { /* y <- x[,] */
-  int j;
-
-  for (j = 0; j < ncol; j++) {
+  for (int j = 0; j < ncol; j++) {
     Memcpy(y, x, nrow);
     y += ldy; x += ldx;
   }
 }
 
 void
-add_mat(double *y, int ldy, double alpha, double *x, int ldx, int nrow, int ncol)
-{ /* y <- alpha * x + y */
-  int j, inc = 1;
-
-  for (j = 0; j < ncol; j++) {
-    ax_plus_y(alpha, x, inc, y, inc, nrow);
+scale_mat(double *y, int ldy, double alpha, double *x, int ldx, int nrow, int ncol)
+{ /* y <- alpha * x[,] */
+  for (int j = 0; j < ncol; j++) {
+    for (int i = 0; i < nrow; i++)
+      y[i] = alpha * x[i];
     y += ldy; x += ldx;
   }
 }
 
 void
-scale_mat(double *y, int ldy, double *x, int ldx, int nrow, int ncol, double alpha)
-{ /* y <- alpha * x[,] */
-  int i, j;
-
-  for (j = 0; j < ncol; j++) {
-    for (i = 0; i < nrow; i++)
-      y[i] = alpha * x[i];
-    y += ldy; x += ldx;
+setzero(double *y, int ldy, int nrow, int ncol)
+{ /* y[,] <- 0, sets all elements of y to 0 */
+  for (int j = 0; j < ncol; j++) {
+    for (int i = 0; i < nrow; i++)
+      y[i] = 0.0;
+    y += ldy;
   }
 }
 
@@ -113,19 +109,19 @@ GE_axpy(double *y, double alpha, double *a, int lda, int nrow, int ncol, double 
 void
 lower_tri(double *y, int ldy, double *x, int ldx, int nrow, int ncol)
 { /* y <- lower.tri(x) */
-  int j, cols;
+  int cols;
 
   cols = MIN(nrow, ncol);
-  for (j = 0; j < cols; j++)
+  for (int j = 0; j < cols; j++)
     Memcpy(y + j * (ldy + 1), x + j * (ldx + 1), nrow - j);
 }
 
 void
 upper_tri(double *y, int ldy, double *x, int ldx, int nrow, int ncol)
 { /* y <- upper.tri(x) */
-  int j, rows;
+  int rows;
 
-  for (j = 0; j < ncol; j++) {
+  for (int j = 0; j < ncol; j++) {
     rows = MIN(j + 1, nrow);
     Memcpy(y + j * ldy, x + j * ldx, rows);
   }
@@ -151,8 +147,7 @@ mult_mat(double *z, double *x, int ldx, int xrows, int xcols, double *y, int ldy
 
   /* use tmp so z can be either x or y */
   tmp = (double *) Calloc(xrows * ycols, double);
-  F77_CALL(dgemm)(transx, transy, &xrows, &ycols, &xcols, &one, x, &ldx, y,
-                  &ldy, &zero, tmp, &xrows);
+  F77_CALL(dgemm)(transx, transy, &xrows, &ycols, &xcols, &one, x, &ldx, y, &ldy, &zero, tmp, &xrows);
   Memcpy(z, tmp, xrows * ycols);
   Free(tmp);
 }
@@ -165,8 +160,7 @@ crossprod(double *z, double *x, int ldx, int xrows, int xcols, double *y, int ld
 
   /* use tmp so z can be either x or y */
   tmp = (double *) Calloc(xcols * ycols, double);
-  F77_CALL(dgemm)(transx, transy, &xcols, &ycols, &xrows, &one, x, &ldx, y,
-                  &ldy, &zero, tmp, &xcols);
+  F77_CALL(dgemm)(transx, transy, &xcols, &ycols, &xrows, &one, x, &ldx, y, &ldy, &zero, tmp, &xcols);
   Memcpy(z, tmp, xcols * ycols);
   Free(tmp);
 }
@@ -179,15 +173,14 @@ outerprod(double *z, double *x, int ldx, int xrows, int xcols, double *y, int ld
 
   /* use tmp so z can be either x or y */
   tmp = (double *) Calloc(xrows * yrows, double);
-  F77_CALL(dgemm)(transx, transy, &xrows, &yrows, &xcols, &one, x, &ldx, y,
-                  &ldy, &zero, tmp, &xrows);
+  F77_CALL(dgemm)(transx, transy, &xrows, &yrows, &xcols, &one, x, &ldx, y, &ldy, &zero, tmp, &xrows);
   Memcpy(z, tmp, xrows * yrows);
   Free(tmp);
 }
 
 void
 rank1_update(double *a, int lda, int nrow, int ncol, double alpha, double *x, double *y)
-{ /* rank 1 operation: a <- alpha * x %*% t(y) + a */
+{ /* rank 1 update: a <- alpha * x %*% t(y) + a */
   int inc = 1;
 
   F77_CALL(dger)(&nrow, &ncol, &alpha, x, &inc, y, &inc, a, &lda);
@@ -207,10 +200,9 @@ rank1_symm_update(double *a, int lda, int n, double alpha, double *x, int job)
 double
 logAbsDet(double *a, int lda, int n)
 { /* log(abs(det(upper triangle))) */
-  int i;
   double accum = 0.0;
 
-  for (i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
     accum += log(fabs(a[i * (lda + 1)]));
   return accum;
 }
@@ -218,13 +210,11 @@ logAbsDet(double *a, int lda, int n)
 /* DEBUG routine */
 
 void
-print_mat(char *msg, double *x, int ldx, int nrow, int ncol)
+print_mat(double *x, int ldx, int nrow, int ncol, char *msg)
 { /* print matrix and message (used for printf debugging) */
-  int i, j;
-
   Rprintf( "%s\n", msg);
-  for (i = 0; i < nrow; i++) {
-    for (j = 0; j < ncol; j++)
+  for (int i = 0; i < nrow; i++) {
+    for (int j = 0; j < ncol; j++)
       Rprintf( " %10.5g", x[i + j * ldx ]);
     Rprintf( "\n" );
   }
@@ -239,7 +229,7 @@ chol_decomp(double *a, int lda, int p, int job, int *info)
    * the factorization has the form:
    * a <- l %*% t(l), if job = 0, or
    * a <- t(u) %*% u, if job = 1,
-   * where u is an upper triangular matrix and l is lower triangular. */
+   * where u is an upper triangular matrix and l is lower triangular */
   char *uplo;
 
   uplo = (job) ? "U" : "L";
@@ -248,7 +238,7 @@ chol_decomp(double *a, int lda, int p, int job, int *info)
 
 void
 svd_decomp(double *mat, int ldmat, int nrow, int ncol, double *u, int ldu, double *d, double *v, int ldv, int job, int *info)
-{ /* return the SVD decomposition of mat. */
+{ /* return the SVD decomposition of mat */
   double *work, *upper;
 
   work  = (double *) Calloc(nrow, double);
@@ -258,8 +248,9 @@ svd_decomp(double *mat, int ldmat, int nrow, int ncol, double *u, int ldu, doubl
 }
 
 QRStruct
-QR_decomp(double *mat, int ldmat, int nrow, int ncol, double *qraux, int *info)
+QR_decomp(double *mat, int ldmat, int nrow, int ncol, double *qraux)
 { /* return the QR decomposition of mat */
+  int *dummy = NULL, job = 0;
   double *work;
   QRStruct value;
 
@@ -270,7 +261,7 @@ QR_decomp(double *mat, int ldmat, int nrow, int ncol, double *qraux, int *info)
   value->nrow  = nrow;
   value->ncol  = ncol;
   value->qraux = qraux;
-  F77_CALL(dgeqr2)(&nrow, &ncol, mat, &ldmat, qraux, work, info);
+  F77_CALL(dqrdc)(mat, &ldmat, &nrow, &ncol, qraux, dummy, work, &job);
   Free(work);
   return value;
 }
@@ -281,119 +272,77 @@ QR_free(QRStruct this)
   Free(this);
 }
 
-LQStruct
-LQ_decomp(double *mat, int ldmat, int nrow, int ncol, double *lqaux, int *info)
-{ /* return the LQ decomposition of mat */
-  double *work;
-  LQStruct value;
-
-  value = (LQStruct) Calloc(1, LQ_struct);
-  work  = (double *) Calloc(nrow, double);
-  value->mat   = mat;
-  value->ldmat = ldmat;
-  value->nrow  = nrow;
-  value->ncol  = ncol;
-  value->lqaux = lqaux;
-  F77_CALL(dgelq2)(&nrow, &ncol, mat, &ldmat, lqaux, work, info);
-  Free(work);
-  return value;
-}
-
-void
-LQ_free(LQStruct this)
-{ /* destructor for a LQ object */
-  Free(this);
-}
-
 /* orthogonal-triangular operations */
 
 void
-QR_qty(QRStruct this, double *ymat, int ldy, int yrow, int ycol)
-{ /* ymat <- qr.qty(this, ymat) */
-  int info = 0, lwork, nrflc;
-  char *side = "L", *trans = "T";
-  double *work;
+QR_qty(QRStruct this, double *qty, double *ymat, int yrow, int ycol, int *info)
+{ /* qty <- qr.qty(this, ymat) */
+  int job = 1000;
+  double *dummy = NULL;
 
-  nrflc = MIN(this->nrow, this->ncol);
-  lwork = MAX(ycol, this->ncol);
-  work  = (double *) Calloc(lwork, double);
-  F77_CALL(dormqr)(side, trans, &yrow, &ycol, &nrflc, this->mat, &(this->ldmat),
-                   this->qraux, ymat, &ldy, work, &lwork, &info);
-  Free(work);
-  if (info)
-    error("DORMQR in QR_qty gave code %d", info);
+  for (int j = 0; j < ycol; j++) {
+    F77_CALL(dqrsl)(this->mat, &(this->ldmat), &(this->nrow), &(this->ncol), this->qraux,
+                    ymat + j * yrow, dummy, qty + j * yrow, dummy, dummy, dummy, &job, info);
+  }
 }
 
 void
-QR_qy(QRStruct this, double *ymat, int ldy, int yrow, int ycol)
-{ /* ymat <- qr.qy(this, ymat) */
-  int info = 0, lwork, nrflc;
-  char *side = "L", *notrans = "N";
-  double *work;
+QR_qy(QRStruct this, double *qy, double *ymat, int yrow, int ycol, int *info)
+{ /* qy <- qr.qy(this, ymat) */
+  int job = 10000;
+  double *dummy = NULL;
 
-  nrflc = MIN(this->nrow, this->ncol);
-  lwork = MAX(ycol, this->ncol);
-  work  = (double *) Calloc(lwork, double);
-  F77_CALL(dormqr)(side, notrans, &yrow, &ycol, &nrflc, this->mat, &(this->ldmat),
-                   this->qraux, ymat, &ldy, work, &lwork, &info);
-  Free(work);
-  if (info)
-    error("DORMQR in QR_qy gave code %d", info);
+  for (int j = 0; j < ycol; j++) {
+    F77_CALL(dqrsl)(this->mat, &(this->ldmat), &(this->nrow), &(this->ncol), this->qraux,
+                    ymat + j * yrow, qy + j * yrow, dummy, dummy, dummy, dummy, &job, info);
+  }
+}
+
+void
+QR_coef(QRStruct this, double *coef, double *ymat, int yrow, int ycol, int *info)
+{ /* coef <- qr.coef(this, ymat) */
+  int job = 100;
+  double *dummy = NULL;
+
+  for (int j = 0; j < ycol; j++) {
+    F77_CALL(dqrsl)(this->mat, &(this->ldmat), &(this->nrow), &(this->ncol), this->qraux,
+                    ymat + j * yrow, dummy, ymat + j * yrow, coef + j * this->ncol, dummy, dummy, &job, info);
+  }
+}
+
+void
+QR_resid(QRStruct this, double *resid, double *ymat, int yrow, int ycol, int *info)
+{ /* resid <- qr.resid(this, ymat) */
+  int job = 10;
+  double *dummy = NULL;
+
+  for (int j = 0; j < ycol; j++) {
+    F77_CALL(dqrsl)(this->mat, &(this->ldmat), &(this->nrow), &(this->ncol), this->qraux,
+                    ymat + j * yrow, dummy, ymat + j * yrow, dummy, resid + j * yrow, dummy, &job, info);
+  }
+}
+
+void
+QR_fitted(QRStruct this, double *fitted, double *ymat, int yrow, int ycol, int *info)
+{ /* fitted <- qr.fitted(this, ymat) */
+  int job = 1;
+  double *dummy = NULL;
+
+  for (int j = 0; j < ycol; j++) {
+    F77_CALL(dqrsl)(this->mat, &(this->ldmat), &(this->nrow), &(this->ncol), this->qraux,
+                    ymat + j * yrow, dummy, ymat + j * yrow, dummy, dummy, fitted + j * yrow, &job, info);
+  }
 }
 
 void
 QR_store_R(QRStruct this, double *Dest, int ldDest)
 { /* copy the R part into Dest */
-  int j, rows;
+  int rows;
 
-  for (j = 0; j < this->ncol; j++) {
+  for (int j = 0; j < this->ncol; j++) {
     rows = MIN(j + 1, this->nrow);
     Memcpy(Dest + j * ldDest, this->mat + j * this->ldmat, rows);
   }
-}
-
-void
-LQ_yqt(LQStruct this, double *ymat, int ldy, int yrow, int ycol)
-{ /* ymat <- lq.yqt(this, ymat) */
-  int info = 0, lwork, nrflc;
-  char *side = "R", *trans = "T";
-  double *work;
-
-  nrflc = MIN(this->nrow, this->ncol);
-  lwork = MAX(yrow, this->nrow);
-  work  = (double *) Calloc(lwork, double);
-  F77_CALL(dormlq)(side, trans, &yrow, &ycol, &nrflc, this->mat, &(this->ldmat),
-                   this->lqaux, ymat, &ldy, work, &lwork, &info);
-  Free(work);
-  if (info)
-    error("DORMLQ in LQ_yqt gave code %d", info);
-}
-
-void
-LQ_yq(LQStruct this, double *ymat, int ldy, int yrow, int ycol)
-{ /* ymat <- lq.yqt(this, ymat) */
-  int info = 0, lwork, nrflc;
-  char *side = "R", *notrans = "N";
-  double *work;
-
-  nrflc = MIN(this->nrow, this->ncol);
-  lwork = MAX(yrow, this->nrow);
-  work  = (double *) Calloc(lwork, double);
-  F77_CALL(dormlq)(side, notrans, &yrow, &ycol, &nrflc, this->mat, &(this->ldmat),
-                   this->lqaux, ymat, &ldy, work, &lwork, &info);
-  Free(work);
-  if (info)
-    error("DORMLQ in LQ_yqt gave code %d", info);
-}
-
-void
-LQ_store_L(LQStruct this, double *Dest, int ldDest)
-{ /* copy the L part into Dest */
-  int j, cols;
-
-  cols = MIN(this->nrow, this->ncol);
-  for (j = 0; j < cols; j++)
-    Memcpy(Dest + j * (ldDest + 1), this->mat + j * (this->ldmat + 1), this->nrow - j);
 }
 
 /* matrix inversion and linear solver */
@@ -401,14 +350,14 @@ LQ_store_L(LQStruct this, double *Dest, int ldDest)
 void
 invert_mat(double *a, int lda, int n, int *info)
 { /* performs matrix inversion */
-  int j, lwork = 2 * n;
+  int lwork = 2 * n;
   char *trans = "N";
   double *b, *work;
 
   b    = (double *) Calloc(n * n, double);
   work = (double *) Calloc(lwork, double);
-  for (j = 0; j < n; j++)
-    b[j * (n + 1)] = 1.;
+  for (int j = 0; j < n; j++)
+    b[j * (n + 1)] = 1.0;
   F77_CALL(dgels)(trans, &n, &n, &n, a, &lda, b, &n, work, &lwork, info);
   Memcpy(a, b, n * n);
   Free(b); Free(work);

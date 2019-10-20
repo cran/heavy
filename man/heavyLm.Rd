@@ -75,6 +75,11 @@ summary(fit)
 data(dialyzer)
 fit <- heavyLm(cbind(y1,y2,y3,y4) ~ -1 + centre, data = dialyzer, family = slash(df = 4))
 fit
+
+# fixing the degrees of freedom at df = 5
+fit <- heavyLm(m.marietta ~ CRSP, data = ereturns, family = Student(df = 5),
+  control = heavy.control(fix.shape = TRUE))
+summary(fit)
 }
 \keyword{regression}
 \keyword{models}

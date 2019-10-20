@@ -1,3 +1,5 @@
+# ID: control.R, last updated 2019/09/06, F.Osorio */
+
 heavy.control <-
 function(maxIter = 2000, tolerance = 1e-6, fix.shape = FALSE, ndraws = 500, algorithm = c("EM", "NEM"), ncycles = 5)
 {

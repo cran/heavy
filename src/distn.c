@@ -1,3 +1,5 @@
+/* ID: distn.c, last updated 2019/08/02, F. Osorio */
+
 #include "distn.h"
 
 /* static functions.. */
@@ -100,8 +102,7 @@ void rand_tgamma(int *n, double *x, double *shape, int *nshape, double *scale, i
 }
 
 /* random number generation of right truncated Gamma distribution using mixtures.
- * Original C code from Anne Philippe (1997).
- */
+ * Original C code from Anne Philippe (1997). */
 
 static int
 ncomp_optimal(double b)

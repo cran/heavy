@@ -12,7 +12,7 @@
 \usage{data(housePrices)}
 \format{data frame with 506 rows and 15 columns.}
 \source{
-  Harrison, D., and Rubinfeld, D.L. (1978).
+  Harrison, D., Rubinfeld, D.L. (1978).
   Hedonic prices and the demand for clean air.
   \emph{Journal of Environmental Economics and Management} \bold{5}, 81-102.
 }

@@ -1,19 +1,17 @@
-/*
- *  Brent's method for unidimensional minimization.
- *  This is a recoded version of fmin.f extracted from netlib.org
- *  which is a slightly modified version of the 'localmin' procedure
- *  described in Brent, R. P. (1973). Algorithms for Minimization
- *  Without Derivatives. Dover, New York, pp. 79-80 and 188-190.
- */
+/* ID: optim.c, last updated 2019/08/02, F. Osorio */
 
 #include "optim.h"
 
 double brent(double ax, double bx, double (*f)(double, void *), void *info, double tolerance)
-{
+{ /* Brent's method for unidimensional minimization.
+   *  This is a recoded version of fmin.f extracted from netlib.org
+   *  which is a slightly modified version of the 'localmin' procedure
+   *  described in Brent, R. P. (1973). Algorithms for Minimization
+   *  Without Derivatives. Dover, New York, pp. 79-80 and 188-190. */
     double a = ax, b = bx;
-    double d, e, m, p, q, r, t2, u, v, w, x, fu, fv, fw, fx;
+    double d, e, m, p, q, r, u, v, w, x, fu, fv, fw, fx;
     double eps = DOUBLE_EPS; /* machine epsilon */
-    double tol1 = eps + 1.0, tol3 = tolerance / 3.0;
+    double tol1 = eps + 1.0, tol2, tol3 = tolerance / 3.0;
 
     /* initialization */
     eps  = sqrt(eps);
@@ -26,10 +24,10 @@ double brent(double ax, double bx, double (*f)(double, void *), void *info, doub
     repeat {
         m = 0.5 * (a + b);
         tol1 = eps * fabs(x) + tol3;
-        t2 = 2.0 * tol1;
-        
+        tol2 = 2.0 * tol1;
+
         /* check stopping criterion */
-        if (fabs(x - m) <= t2 - 0.5 * (b - a))
+        if (fabs(x - m) <= tol2 - 0.5 * (b - a))
             break; /* successful completion */
 
         p = q = r = 0.0;
@@ -44,27 +42,27 @@ double brent(double ax, double bx, double (*f)(double, void *), void *info, doub
             r = e;
             e = d;
         }
-        
+
         if (fabs(p) < fabs(0.5 * q * r) && p < q * (a - x) && p < q * (b - x)) {
             /* a parabolic interpolation step */
             d = p / q;
             u = x + d;
             /* f must not be evaluated too close to a or b */
-            if ((u - a) < t2 || (b - u) < t2)
+            if ((u - a) < tol2 || (b - u) < tol2)
                 d = (x < m) ? tol1 : -tol1;
         } else {
             /* a golden section step */
             e = (x < m) ? b - x : a - x;
             d = GOLDEN * e;
         }
-        
+
         /* f must not be evaluated too close to x */
         if (fabs(d) >= tol1)
             u = x + d;
         else
             u = x + ((d > 0.0) ? tol1 : -tol1);
         fu = (*f)(u, info);
-        
+
         /* update a, b, v, w and x */
         if (fu <= fx) {
             if (u < x) b = x; else a = x;
@@ -81,6 +79,6 @@ double brent(double ax, double bx, double (*f)(double, void *), void *info, doub
             }
         }
     }
-    
+
     return x;
 }

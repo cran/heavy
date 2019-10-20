@@ -1,9 +1,11 @@
+# ID: family.R, last updated 2019/09/06, F.Osorio */
+
 heavy.family <-
 function(object, ...)
 UseMethod("family")
 
 print.heavy.family <-
-function (x, ...) 
+function (x, ...)
 cat(" Family:", deparse(x$call), "\n")
 
 normal <-

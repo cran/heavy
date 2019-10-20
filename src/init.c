@@ -1,5 +1,8 @@
+/* ID: init.c, last updated 2019/08/02, F. Osorio */
+
 #include <R_ext/Rdynload.h>
 #include "distn.h"
+#include "grubbs_fit.h"
 #include "lm_fit.h"
 #include "lme_fit.h"
 #include "mv_fit.h"
@@ -14,6 +17,7 @@ static const R_CMethodDef CEntries[]  = {
   {"quantile_tgamma",       (DL_FUNC) &quantile_tgamma,       10},
   {"rand_tgamma",           (DL_FUNC) &rand_tgamma,            8},
   {"cdf_gamma_derivatives", (DL_FUNC) &cdf_gamma_derivatives,  4},
+  {"grubbs_fit",            (DL_FUNC) &grubbs_fit,            13},
   {"lm_fit",                (DL_FUNC) &lm_fit,                13},
   {"lme_fit",               (DL_FUNC) &lme_fit,               16},
   {"lme_fitted",            (DL_FUNC) &lme_fitted,             8},
